@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>MY CLOSET — A Wardrobe Ledger</title>
+<meta name="description" content="A personal wardrobe ledger." />
+<meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0d0c0a" media="(prefers-color-scheme: dark)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="My Closet" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,900;1,300;1,400;1,500&family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f1e8;
+    --bg-elev: #fbf8f1;
+    --paper: #efe9dc;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8378;
+    --rule: #1a1a1a;
+    --hairline: rgba(26,26,26,.12);
+    --accent: #8b1e1e;
+    --hover: rgba(26,26,26,.04);
+  }
+  [data-theme="dark"] {
+    --bg: #0d0c0a;
+    --bg-elev: #161512;
+    --paper: #1c1a16;
+    --ink: #f1ead8;
+    --ink-soft: #b8b1a0;
+    --ink-mute: #6f6a5e;
+    --rule: #f1ead8;
+    --hairline: rgba(241,234,216,.12);
+    --accent: #d4b06a;
+    --hover: rgba(241,234,216,.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', 'Noto Sans JP', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-weight: 300;
+    line-height: 1.5;
+    transition: background .35s ease, color .35s ease;
+    -webkit-font-smoothing: antialiased;
+  }
+  .serif { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 40px 80px; }
+  @media (max-width: 720px) { .wrap { padding: 18px 16px 60px; } }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 1.5px solid var(--rule);
+    gap: 20px;
+  }
+  .masthead .left, .masthead .right {
+    font-size: 10px; letter-spacing: .25em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .masthead .right { text-align: right; }
+  .masthead .title {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 900;
+    font-size: clamp(38px, 7vw, 84px);
+    letter-spacing: .04em;
+    line-height: .95;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .masthead-sub {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0 22px;
+    border-bottom: 0.5px solid var(--rule);
+    font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .masthead-sub em {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic; font-size: 14px;
+    letter-spacing: .02em; text-transform: none; color: var(--ink);
+  }
+  @media (max-width: 720px) {
+    .masthead { grid-template-columns: 1fr; gap: 6px; }
+    .masthead .left, .masthead .right { text-align: center; }
+    .masthead-sub { flex-direction: column; gap: 6px; align-items: flex-start; }
+  }
+
+  /* ---------- Nav ---------- */
+  nav.tabs {
+    display: flex; align-items: center; justify-content: center;
+    padding: 26px 0 22px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    position: relative;
+  }
+  nav.tabs button {
+    background: transparent; border: 0;
+    color: var(--ink);
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-size: 13px; letter-spacing: .35em; text-transform: uppercase;
+    padding: 6px 22px;
+    cursor: pointer;
+    border-right: 0.5px solid var(--rule);
+  }
+  nav.tabs button:last-of-type { border-right: 0; }
+  nav.tabs button.active { font-weight: 700; }
+  nav.tabs button.active::before { content: "— "; }
+  nav.tabs button.active::after  { content: " —"; }
+  nav.tabs button:hover { color: var(--accent); }
+  .nav-actions {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    display: flex; gap: 8px;
+  }
+  .nav-icon {
+    background: transparent; border: 1px solid var(--rule); color: var(--ink);
+    width: 34px; height: 34px; border-radius: 50%;
+    cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .nav-icon:hover { background: var(--ink); color: var(--bg); }
+  #syncBtn.syncing #syncIcon { animation: spin 1s linear infinite; display: inline-block; }
+  #syncBtn.error { border-color: var(--accent); color: var(--accent); }
+  #syncBtn.offline { opacity: .5; }
+  @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  @media (max-width: 720px) {
+    nav.tabs { padding: 18px 0 14px; }
+    nav.tabs button.tab-btn { padding: 6px 10px; font-size: 11px; letter-spacing: .2em; }
+    .nav-actions { position: static; transform: none; margin-top: 10px; }
+  }
+
+  /* ---------- Section head ---------- */
+  .section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 22px; padding-bottom: 12px;
+    border-bottom: 0.5px solid var(--rule);
+  }
+  .section-head h2 {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: clamp(22px, 3vw, 30px);
+  }
+  .section-head .meta {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    color: var(--ink-soft); font-size: 16px;
+  }
+
+  /* ---------- Filters ---------- */
+  .filters {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto auto;
+    gap: 14px; margin-bottom: 30px; align-items: end;
+  }
+  @media (max-width: 900px) { .filters { grid-template-columns: 1fr 1fr; } }
+  .filters label {
+    display: block; font-size: 9px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--ink-mute); margin-bottom: 6px; font-weight: 500;
+  }
+  .filters input, .filters select {
+    width: 100%; padding: 9px 0;
+    background: transparent; border: 0; border-bottom: 1px solid var(--rule);
+    color: var(--ink); font-family: 'Inter', sans-serif; font-size: 14px;
+    border-radius: 0; outline: none;
+  }
+  .filters input::placeholder {
+    color: var(--ink-mute); font-style: italic;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 16px;
+  }
+  .filters select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 16px, calc(100% - 9px) 16px;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+    padding-right: 24px; cursor: pointer;
+  }
+  .small-btn {
+    background: transparent; border: 1px solid var(--rule); color: var(--ink);
+    padding: 9px 16px;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 11px;
+    letter-spacing: .25em; text-transform: uppercase; cursor: pointer;
+    height: 38px;
+    white-space: nowrap;
+  }
+  .small-btn:hover { background: var(--ink); color: var(--bg); }
+
+  /* ---------- WARDROBE (visual closet) ---------- */
+  .closet-controls {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 36px; gap: 20px; flex-wrap: wrap;
+  }
+  .layout-toggle, .density-toggle {
+    display: flex;
+    border: 0.5px solid var(--rule);
+  }
+  .layout-toggle button {
+    padding: 9px 18px;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-size: 11px; letter-spacing: .25em; text-transform: uppercase;
+    background: transparent; border: 0; color: var(--ink);
+    cursor: pointer; border-right: 0.5px solid var(--rule);
+  }
+  .layout-toggle button:last-child { border-right: 0; }
+  .layout-toggle button.active { background: var(--ink); color: var(--bg); }
+  .density-toggle button {
+    width: 38px; height: 38px;
+    background: transparent; border: 0; color: var(--ink-mute);
+    border-right: 0.5px solid var(--rule);
+    cursor: pointer; font-size: 14px;
+  }
+  .density-toggle button:last-child { border-right: 0; }
+  .density-toggle button.active { background: var(--ink); color: var(--bg); }
+
+  .season-row {
+    display: flex; align-items: center; gap: 16px;
+    margin: -18px 0 28px;
+    padding-bottom: 14px;
+    border-bottom: 0.5px dashed var(--hairline);
+    flex-wrap: wrap;
+  }
+  .season-row.hidden { display: none; }
+  .season-label {
+    font-size: 9px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--ink-mute); font-weight: 500;
+  }
+  .season-toggle { display: flex; }
+  .season-toggle button {
+    background: transparent; border: 0;
+    color: var(--ink-mute);
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    font-size: 15px; letter-spacing: .04em;
+    padding: 4px 14px;
+    cursor: pointer;
+    border-right: 0.5px solid var(--hairline);
+  }
+  .season-toggle button:last-child { border-right: 0; }
+  .season-toggle button.active { color: var(--ink); font-weight: 500; }
+  .season-toggle button.auto-hint::after {
+    content: " ◦";
+    color: var(--accent);
+  }
+
+  .cat-section { margin-bottom: 60px; }
+  .cat-section:last-child { margin-bottom: 0; }
+  .cat-section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 10px; margin-bottom: 26px;
+  }
+  .cat-section-head h3 {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-weight: 700;
+    font-size: clamp(20px, 3vw, 28px);
+    letter-spacing: .06em; text-transform: uppercase;
+  }
+  .cat-section-head .count {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    font-size: 16px; color: var(--ink-soft);
+  }
+
+  .closet-grid {
+    display: grid;
+    gap: 36px 22px;
+  }
+  .closet-grid.density-small  { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 22px 12px; }
+  .closet-grid.density-medium { grid-template-columns: repeat(4, 1fr); gap: 30px 18px; }
+  .closet-grid.density-large  { grid-template-columns: repeat(2, 1fr); gap: 50px 32px; }
+  @media (max-width: 760px) {
+    .closet-grid.density-medium { grid-template-columns: repeat(4, 1fr); gap: 16px 8px; }
+    .closet-grid.density-large  { grid-template-columns: repeat(2, 1fr); gap: 24px 12px; }
+    .closet-grid.density-small  { grid-template-columns: repeat(7, 1fr); gap: 12px 6px; }
+    .closet-card .info .num { display: none; }
+    .closet-card .info .brand { font-size: 11px; letter-spacing: .03em; }
+    .closet-card .info .item { font-size: 12px; }
+    .closet-grid.density-small .closet-card .info { display: none; }
+  }
+
+  .closet-card { cursor: pointer; transition: transform .25s ease; }
+  .closet-card:hover { transform: translateY(-3px); }
+  .closet-card .photo {
+    aspect-ratio: 3 / 4;
+    background: var(--paper);
+    overflow: hidden;
+    border: 0.5px solid var(--hairline);
+    position: relative;
+  }
+  .closet-card .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .closet-card .photo .placeholder {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 16px;
+  }
+  .closet-card .photo .placeholder .brand-large {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-weight: 700;
+    font-size: clamp(13px, 1.6vw, 17px);
+    letter-spacing: .08em; text-transform: uppercase;
+    line-height: 1.2; color: var(--ink);
+  }
+  .closet-card .photo .placeholder .line {
+    width: 28px; height: 1px; background: var(--rule); margin: 10px 0;
+  }
+  .closet-card .photo .placeholder .item-mini {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    font-size: 13px; color: var(--ink-soft);
+  }
+  .closet-card .info { padding-top: 12px; text-align: left; }
+  .closet-card .info .num {
+    font-size: 9px; letter-spacing: .3em; color: var(--ink-mute); margin-bottom: 4px;
+  }
+  .closet-card .info .brand {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-weight: 700;
+    font-size: 13px; letter-spacing: .04em; text-transform: uppercase;
+    line-height: 1.25;
+  }
+  .closet-card .info .item {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    font-size: 15px; color: var(--ink-soft); margin-top: 2px; line-height: 1.3;
+  }
+  .closet-grid.density-small .closet-card .info .num { display: none; }
+  .closet-grid.density-small .closet-card .info .brand { font-size: 11px; }
+  .closet-grid.density-small .closet-card .info .item  { font-size: 13px; }
+  .closet-grid.density-large .closet-card .info { padding-top: 16px; }
+  .closet-grid.density-large .closet-card .info .brand { font-size: 16px; }
+  .closet-grid.density-large .closet-card .info .item  { font-size: 18px; }
+
+  /* ---------- LEDGER (the list) ---------- */
+  .year-block { margin-bottom: 50px; }
+  .year-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    border-bottom: 1.5px solid var(--rule);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    color: var(--ink);
+  }
+  .year-num {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 900;
+    font-size: clamp(56px, 9vw, 110px);
+    letter-spacing: .02em;
+    line-height: 1;
+  }
+  .year-summary {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+  }
+  .year-count {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 14px;
+    letter-spacing: .04em;
+    color: var(--ink-mute);
+  }
+  .year-total {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: clamp(20px, 3vw, 28px);
+    letter-spacing: .01em;
+    color: var(--ink);
+  }
+  @media (max-width: 600px) {
+    .year-label { gap: 6px; padding-bottom: 10px; }
+    .year-summary { gap: 12px; }
+  }
+
+  .month-block { margin-top: 38px; }
+  .month-head {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: baseline;
+    gap: 18px;
+    padding-bottom: 10px;
+    border-bottom: 0.5px solid var(--rule);
+    margin-bottom: 4px;
+  }
+  .month-name {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3.6vw, 34px);
+    letter-spacing: .04em;
+  }
+  .month-name .num {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 18px;
+    color: var(--ink-mute);
+    margin-left: 12px;
+    letter-spacing: .02em;
+  }
+  .month-count {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-style: italic;
+    font-size: 15px;
+    color: var(--ink-soft);
+  }
+  .month-total {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: .02em;
+  }
+
+  .month-empty {
+    padding: 18px 0;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-style: italic;
+    color: var(--ink-mute);
+    font-size: 17px;
+    letter-spacing: .02em;
+  }
+
+  .entry {
+    display: grid;
+    grid-template-columns: 48px 1.4fr 1.6fr 90px 130px;
+    align-items: center;
+    gap: 18px;
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--hairline);
+    cursor: pointer;
+    transition: background .15s, transform .15s;
+  }
+  .entry:hover { background: var(--hover); }
+  .entry .thumb {
+    width: 48px; height: 48px;
+    background: var(--paper);
+    overflow: hidden;
+    border: 0.5px solid var(--hairline);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .entry .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .entry .thumb .ph {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .entry .brand {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .entry .item {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--ink-soft);
+  }
+  .entry .cat {
+    font-size: 9px;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    text-align: right;
+  }
+  .entry .price {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    text-align: right;
+    letter-spacing: .02em;
+  }
+  @media (max-width: 720px) {
+    .entry {
+      grid-template-columns: 40px 1fr auto;
+      grid-template-areas:
+        "thumb brand price"
+        "thumb item  cat";
+      gap: 4px 14px;
+      padding: 12px 4px;
+    }
+    .entry .thumb { width: 40px; height: 40px; grid-area: thumb; align-self: center; }
+    .entry .brand { grid-area: brand; font-size: 14px; }
+    .entry .item { grid-area: item; font-size: 15px; }
+    .entry .price { grid-area: price; font-size: 14px; }
+    .entry .cat { grid-area: cat; }
+  }
+
+  /* ---------- Empty state ---------- */
+  .empty {
+    text-align: center; padding: 80px 20px;
+    color: var(--ink-mute);
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    font-size: 22px; border: 0.5px dashed var(--rule);
+  }
+
+  /* ---------- Form (compact) ---------- */
+  .form-compact {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 36px;
+    max-width: 880px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  .form-photo {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .photo-preview {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: var(--paper);
+    border: 0.5px solid var(--rule);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .photo-preview:hover { background: var(--hover); }
+  .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-preview .placeholder { text-align: center; color: var(--ink-mute); padding: 8px; }
+  .photo-preview .placeholder .lg {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-size: 42px; line-height: 1; font-weight: 200; color: var(--ink-soft);
+  }
+  .photo-preview .placeholder span {
+    display: block; margin-top: 8px;
+    font-style: italic; font-size: 12px; color: var(--ink-mute);
+    letter-spacing: .02em;
+  }
+
+  .photo-tabs {
+    display: flex; border-bottom: 0.5px solid var(--hairline);
+  }
+  .photo-tabs button {
+    flex: 1;
+    background: transparent; border: 0;
+    padding: 7px 4px;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-size: 10px; letter-spacing: .25em; text-transform: uppercase;
+    color: var(--ink-mute);
+    cursor: pointer; border-bottom: 2px solid transparent;
+  }
+  .photo-tabs button.active { color: var(--ink); border-bottom-color: var(--ink); }
+  .photo-input-field input { font-size: 13px; padding: 6px 0; }
+
+  .form-fields {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .entry-title {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: .04em;
+    margin-bottom: 0;
+  }
+  .form-fields .field { margin-bottom: 0; }
+  .field label {
+    display: block; font-size: 9px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--ink-mute); margin-bottom: 5px; font-weight: 500;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%; background: transparent; border: 0;
+    border-bottom: 1px solid var(--rule);
+    padding: 7px 0;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 15px; color: var(--ink);
+    border-radius: 0; outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-bottom-color: var(--accent);
+  }
+  .field select { appearance: none; cursor: pointer; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .submit-btn {
+    width: 100%; background: var(--ink); color: var(--bg);
+    border: 0; padding: 13px;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-size: 12px; letter-spacing: .35em; text-transform: uppercase;
+    cursor: pointer; margin-top: 6px;
+  }
+  .submit-btn:hover { background: var(--accent); }
+
+  @media (max-width: 700px) {
+    .form-compact {
+      grid-template-columns: 130px 1fr;
+      gap: 18px;
+    }
+    .entry-title { font-size: 18px; }
+    .field-row { gap: 14px; }
+  }
+
+  /* ---------- Stats ---------- */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 0.5px solid var(--rule); border-bottom: 0.5px solid var(--rule);
+    margin-bottom: 50px;
+  }
+  @media (max-width: 760px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+  .stat {
+    padding: 28px 22px; border-right: 0.5px solid var(--rule); text-align: center;
+  }
+  .stat:last-child { border-right: 0; }
+  @media (max-width: 760px) {
+    .stat:nth-child(2) { border-right: 0; }
+    .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 0.5px solid var(--rule); }
+  }
+  .stat .label {
+    font-size: 9px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--ink-mute); margin-bottom: 12px;
+  }
+  .stat .value {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-weight: 700;
+    font-size: clamp(22px, 4vw, 36px);
+  }
+  .stat .sub {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    color: var(--ink-soft); font-size: 14px; margin-top: 6px;
+  }
+  .charts {
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px;
+  }
+  @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+  .chart-wrap {
+    background: var(--bg-elev); padding: 26px;
+    border: 0.5px solid var(--rule);
+  }
+  .chart-wrap h3 {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-weight: 700;
+    font-size: 17px; letter-spacing: .04em; margin-bottom: 4px;
+  }
+  .chart-wrap .sub {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    color: var(--ink-soft); font-size: 14px;
+    margin-bottom: 20px; padding-bottom: 12px;
+    border-bottom: 0.5px solid var(--rule);
+  }
+  .chart-wrap canvas { max-height: 320px; }
+
+  /* ---------- Modal ---------- */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+  }
+  .modal-bg.active { display: flex; }
+  .modal {
+    background: var(--bg);
+    max-width: 720px; width: 100%; max-height: 90vh; overflow: auto;
+    padding: 36px;
+    position: relative; border: 0.5px solid var(--rule);
+  }
+  .modal-close {
+    position: absolute; top: 18px; right: 22px;
+    background: transparent; border: 0;
+    color: var(--ink); font-size: 26px;
+    cursor: pointer; font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    line-height: 1;
+  }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 30px; }
+  @media (max-width: 600px) { .modal-grid { grid-template-columns: 1fr; } }
+  .modal .photo-large {
+    aspect-ratio: 3/4; background: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+    border: 0.5px solid var(--rule); overflow: hidden;
+  }
+  .modal .photo-large img { width: 100%; height: 100%; object-fit: cover; }
+  .modal h2 {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-weight: 700;
+    font-size: 26px; letter-spacing: .03em; text-transform: uppercase;
+  }
+  .modal .item-name {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    font-size: 22px; color: var(--ink-soft); margin: 4px 0 22px;
+  }
+  .modal .meta-row {
+    display: flex; justify-content: space-between;
+    padding: 12px 0; border-bottom: 0.5px solid var(--rule);
+    font-size: 14px; gap: 20px;
+  }
+  .modal .meta-row .key {
+    font-size: 9px; letter-spacing: .3em; text-transform: uppercase; color: var(--ink-mute);
+  }
+  .modal .meta-row .val {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-weight: 600; text-align: right;
+  }
+  .modal .meta-row .val.note {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic; font-weight: 400;
+    max-width: 60%; line-height: 1.4;
+  }
+  .modal .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 22px; }
+  .modal .delete-btn, .modal .edit-btn {
+    background: transparent; border: 1px solid var(--rule); color: var(--ink);
+    padding: 12px 18px;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-size: 11px; letter-spacing: .25em; text-transform: uppercase;
+    cursor: pointer;
+  }
+  .modal .delete-btn { border-color: var(--accent); color: var(--accent); }
+  .modal .edit-btn:hover { background: var(--ink); color: var(--bg); }
+  .modal .delete-btn:hover { background: var(--accent); color: var(--bg); }
+
+  /* ---------- Footer ---------- */
+  footer {
+    margin-top: 70px; padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  footer em {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
+    font-size: 13px; letter-spacing: .02em; text-transform: none; color: var(--ink-soft);
+  }
+
+  /* ---------- Settings ---------- */
+  .settings-modal { max-width: 540px; }
+  .settings-desc {
+    font-style: italic; font-size: 14px; color: var(--ink-soft);
+    line-height: 1.5; margin-top: 8px;
+  }
+  .settings-hint {
+    font-size: 12px; color: var(--ink-mute); margin-top: 6px;
+    line-height: 1.5;
+  }
+  .settings-hint a { color: var(--accent); text-decoration: none; }
+  .settings-hint a:hover { text-decoration: underline; }
+  .settings-hint code {
+    background: var(--paper); padding: 1px 5px; font-family: monospace; font-size: 11px;
+  }
+  .settings-status {
+    margin-top: 14px;
+    font-size: 13px; color: var(--ink-soft); font-style: italic;
+    min-height: 18px;
+  }
+  .settings-status.success { color: #2d7a3e; font-style: normal; }
+  .settings-status.error { color: var(--accent); font-style: normal; }
+  [data-theme="dark"] .settings-status.success { color: #6dc481; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--ink); color: var(--bg);
+    padding: 14px 26px;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
+    z-index: 200; transition: transform .35s ease;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn .35s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== MASTHEAD ===== -->
+  <header>
+    <div class="masthead">
+      <div class="left">A Personal Wardrobe Ledger</div>
+      <h1 class="title serif">MY CLOSET</h1>
+      <div class="right" id="dateRight">— · —</div>
+    </div>
+    <div class="masthead-sub">
+      <span>Curated by Takuro</span>
+      <em>"Less, but better."</em>
+      <span>Est. 2026</span>
+    </div>
+  </header>
+
+  <!-- ===== NAV ===== -->
+  <nav class="tabs">
+    <button class="tab-btn" data-tab="wardrobe">The Closet</button>
+    <button class="tab-btn active" data-tab="closet">The Ledger</button>
+    <button class="tab-btn" data-tab="entry">New Entry</button>
+    <button class="tab-btn" data-tab="stats">The Numbers</button>
+    <div class="nav-actions">
+      <button class="nav-icon" id="syncBtn" title="Sync now">
+        <span id="syncIcon">⟳</span>
+      </button>
+      <button class="nav-icon" id="settingsBtn" title="Settings">⚙</button>
+      <button class="nav-icon" id="themeToggle" title="Toggle theme">☾</button>
+    </div>
+  </nav>
+
+  <!-- ===== WARDROBE (visual closet view) ===== -->
+  <section class="view" id="view-wardrobe">
+    <div class="section-head">
+      <h2>The Closet</h2>
+      <span class="meta" id="wardrobeMeta">— a glimpse inside —</span>
+    </div>
+
+    <div class="closet-controls">
+      <div class="layout-toggle">
+        <button class="layout-btn active" data-layout="category">By Category</button>
+        <button class="layout-btn" data-layout="month">By Month</button>
+        <button class="layout-btn" data-layout="all">All</button>
+      </div>
+      <div class="density-toggle">
+        <button class="density-btn" data-density="large" title="Large">▣</button>
+        <button class="density-btn active" data-density="medium" title="Medium">▦</button>
+        <button class="density-btn" data-density="small" title="Compact">▤</button>
+      </div>
+    </div>
+
+    <div class="season-row" id="seasonRow">
+      <span class="season-label">Order by Season</span>
+      <div class="season-toggle">
+        <button class="season-btn" data-season="spring">Spring</button>
+        <button class="season-btn" data-season="summer">Summer</button>
+        <button class="season-btn" data-season="fall">Autumn</button>
+        <button class="season-btn" data-season="winter">Winter</button>
+      </div>
+    </div>
+
+    <div id="wardrobe"></div>
+  </section>
+
+  <!-- ===== CLOSET (LEDGER) ===== -->
+  <section class="view active" id="view-closet">
+    <div class="filters">
+      <div>
+        <label>Search</label>
+        <input type="text" id="searchInput" placeholder="brand or item..." />
+      </div>
+      <div>
+        <label>Category</label>
+        <select id="filterCategory">
+          <option value="">All</option>
+          <option>Outerwear</option>
+          <option>Tops</option>
+          <option>Bottoms</option>
+          <option>Shoes</option>
+          <option>Accessories</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Month</label>
+        <select id="filterMonth"><option value="">All</option></select>
+      </div>
+      <div>
+        <label>Sort</label>
+        <select id="sortBy">
+          <option value="date-desc">Newest first</option>
+          <option value="date-asc">Oldest first</option>
+          <option value="price-desc">Price ↓</option>
+          <option value="price-asc">Price ↑</option>
+        </select>
+      </div>
+      <button class="small-btn" id="clearFilters">Reset</button>
+      <button class="small-btn" id="exportBtn">Export</button>
+    </div>
+
+    <div id="ledger"></div>
+  </section>
+
+  <!-- ===== NEW ENTRY ===== -->
+  <section class="view" id="view-entry">
+    <form id="entryForm" class="form-compact">
+      <div class="form-photo">
+        <div class="photo-preview" id="photoPreview" title="クリックしてアップロード">
+          <div class="placeholder">
+            <div class="lg">＋</div>
+          </div>
+        </div>
+        <div class="photo-tabs">
+          <button type="button" class="ptab active" data-mode="url">URL</button>
+          <button type="button" class="ptab" data-mode="upload">Upload</button>
+          <button type="button" class="ptab" data-mode="none">None</button>
+        </div>
+        <div class="field photo-input-field" id="urlField">
+          <input type="url" id="f-photoUrl" placeholder="image URL..." />
+        </div>
+        <div class="field photo-input-field" id="uploadField" style="display:none;">
+          <input type="file" id="f-photoFile" accept="image/*" />
+        </div>
+      </div>
+
+      <div class="form-fields">
+        <h2 id="entryTitle" class="entry-title">New Entry</h2>
+
+        <div class="field">
+          <label>Brand</label>
+          <input type="text" id="f-brand" required placeholder="Bottega Veneta" />
+        </div>
+        <div class="field">
+          <label>Item</label>
+          <input type="text" id="f-item" required placeholder="ニット / cashmere knit" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Category</label>
+            <select id="f-category" required>
+              <option value="">— select —</option>
+              <option>Outerwear</option>
+              <option>Tops</option>
+              <option>Bottoms</option>
+              <option>Shoes</option>
+              <option>Accessories</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Price (¥)</label>
+            <input type="number" id="f-price" min="0" required placeholder="58000" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Purchase Date</label>
+            <input type="date" id="f-date" required />
+          </div>
+          <div class="field">
+            <label>Note</label>
+            <input type="text" id="f-note" placeholder="色、コーデのメモ..." />
+          </div>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn">Add to Ledger</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ===== STATS ===== -->
+  <section class="view" id="view-stats">
+    <div class="section-head">
+      <h2>The Numbers</h2>
+      <span class="meta">— spending, examined —</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="label">Total Items</div>
+        <div class="value" id="statItems">0</div>
+        <div class="sub">in the wardrobe</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total Spent</div>
+        <div class="value" id="statTotal">¥0</div>
+        <div class="sub">across all time</div>
+      </div>
+      <div class="stat">
+        <div class="label">This Year</div>
+        <div class="value" id="statYear">¥0</div>
+        <div class="sub" id="statYearLabel">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">This Month</div>
+        <div class="value" id="statMonth">¥0</div>
+        <div class="sub" id="statMonthLabel">—</div>
+      </div>
+    </div>
+    <div class="charts">
+      <div class="chart-wrap">
+        <h3>Monthly Expenditure</h3>
+        <div class="sub">月別の支出推移。</div>
+        <canvas id="monthChart"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <h3>By Brand</h3>
+        <div class="sub">ブランド別の支出内訳（金額ベース）。</div>
+        <canvas id="brandChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>© MMXXVI</span>
+    <em>Saved locally to your browser.</em>
+    <span>— End —</span>
+  </footer>
+</div>
+
+<!-- ===== MODAL ===== -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <button class="modal-close" id="modalClose">×</button>
+    <div class="modal-grid">
+      <div class="photo-large" id="modalPhoto"></div>
+      <div>
+        <h2 id="modalBrand"></h2>
+        <div class="item-name" id="modalItem"></div>
+        <div class="meta-row"><span class="key">Price</span><span class="val" id="modalPrice"></span></div>
+        <div class="meta-row"><span class="key">Category</span><span class="val" id="modalCategory"></span></div>
+        <div class="meta-row"><span class="key">Purchased</span><span class="val" id="modalDate"></span></div>
+        <div class="meta-row" id="modalNoteRow" style="display:none">
+          <span class="key">Note</span><span class="val note" id="modalNote"></span>
+        </div>
+        <div class="actions">
+          <button class="edit-btn" id="modalEdit">Edit</button>
+          <button class="delete-btn" id="modalDelete">Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS MODAL ===== -->
+<div class="modal-bg" id="settingsBg">
+  <div class="modal settings-modal">
+    <button class="modal-close" id="settingsClose">×</button>
+    <h2 style="margin-bottom: 8px;">Sync Settings</h2>
+    <p class="settings-desc">複数端末で同期するため、GitHub Personal Access Token と Gist ID を設定します。トークンはこの端末のローカルにのみ保存されます。</p>
+
+    <div class="field" style="margin-top: 18px;">
+      <label>GitHub Personal Access Token</label>
+      <input type="password" id="setPat" placeholder="ghp_..." autocomplete="off" />
+      <div class="settings-hint">
+        <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens</a>
+        で「Fine-grained token」を作成 → Account permissions の「Gists」を Read and write に。
+      </div>
+    </div>
+    <div class="field">
+      <label>Gist ID</label>
+      <input type="text" id="setGistId" placeholder="32文字の英数字" autocomplete="off" />
+      <div class="settings-hint">
+        <a href="https://gist.github.com" target="_blank" rel="noopener">gist.github.com</a>
+        で新規 secret gist を作成（ファイル名は <code>closet.json</code>、内容は <code>[]</code>）。URLの末尾がGist ID。
+      </div>
+    </div>
+
+    <div class="settings-status" id="settingsStatus"></div>
+
+    <div class="actions">
+      <button class="edit-btn" id="testSyncBtn">Test Connection</button>
+      <button class="edit-btn" id="saveSettingsBtn" style="background: var(--ink); color: var(--bg);">Save</button>
+    </div>
+
+    <div style="margin-top: 24px; padding-top: 20px; border-top: 0.5px solid var(--rule); font-size: 12px; color: var(--ink-mute);">
+      <div id="syncInfo">未設定です。</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Saved.</div>
+
+<script>
+/* ============ DATA ============ */
+const STORAGE_KEY = 'myCloset.items.v2';
+const THEME_KEY = 'myCloset.theme.v1';
+
+const SAMPLE = [
+  { id:'s1',  brand:'Bottega Veneta', item:'ニット',                category:'Tops',      price:78000,  date:'2026-01-15', note:'', photo:null },
+  { id:'s2',  brand:'Dior',           item:'スニーカー',             category:'Shoes',     price:165000, date:'2026-01-22', note:'', photo:null },
+  { id:'s3',  brand:'AURALEE',        item:'コート',                 category:'Outerwear', price:160000, date:'2026-03-04', note:'', photo:null },
+  { id:'s4',  brand:'AURALEE',        item:'Tシャツ',                category:'Tops',      price:20000,  date:'2026-03-10', note:'', photo:null },
+  { id:'s5',  brand:'Unused',         item:'パンツ',                 category:'Bottoms',   price:35000,  date:'2026-03-21', note:'', photo:null },
+  { id:'s6',  brand:'MM6 × Salomon',  item:'ジャケット',             category:'Outerwear', price:52000,  date:'2026-04-03', note:'', photo:null },
+  { id:'s7',  brand:'Margiela',       item:'シャツ',                 category:'Tops',      price:55000,  date:'2026-04-08', note:'', photo:null },
+  { id:'s8',  brand:'Bottega Veneta', item:'シャツ',                 category:'Tops',      price:60000,  date:'2026-04-12', note:'', photo:null },
+  { id:'s9',  brand:'Bottega Veneta', item:'Tシャツ',                category:'Tops',      price:40000,  date:'2026-04-18', note:'', photo:null },
+  { id:'s10', brand:'Jil Sander',     item:'Tシャツ',                category:'Tops',      price:61000,  date:'2026-04-22', note:'', photo:null },
+  { id:'s11', brand:'On',             item:'スニーカー',             category:'Shoes',     price:15000,  date:'2026-04-28', note:'', photo:null },
+  { id:'s12', brand:'MM6',            item:'あかね',                 category:'Other',     price:110000, date:'2026-05-02', note:'', photo:null }
+];
+
+let items = [];
+let editingId = null;
+
+function load() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try { items = JSON.parse(raw); }
+    catch { items = [...SAMPLE]; saveLocal(); }
+  } else { items = [...SAMPLE]; saveLocal(); }
+}
+function saveLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
+function save() { saveLocal(); queueGistSave(); }
+
+/* ============ GIST SYNC ============ */
+const GIST_FILENAME = 'closet.json';
+const PAT_KEY = 'myCloset.gist.pat';
+const GISTID_KEY = 'myCloset.gist.id';
+const LAST_SYNC_KEY = 'myCloset.lastSync';
+
+let saveTimer = null;
+let syncInFlight = false;
+
+function getGistConfig() {
+  return {
+    pat: localStorage.getItem(PAT_KEY) || '',
+    gistId: localStorage.getItem(GISTID_KEY) || ''
+  };
+}
+function hasGistConfig() {
+  const c = getGistConfig();
+  return !!(c.pat && c.gistId);
+}
+
+function setSyncStatus(s) {
+  const btn = document.getElementById('syncBtn');
+  btn.classList.remove('syncing','error','offline');
+  if (s !== 'idle') btn.classList.add(s);
+  updateSyncInfo();
+}
+
+function setLastSynced(d) {
+  localStorage.setItem(LAST_SYNC_KEY, d.toISOString());
+  updateSyncInfo();
+}
+
+function updateSyncInfo() {
+  const el = document.getElementById('syncInfo');
+  if (!el) return;
+  if (!hasGistConfig()) { el.textContent = '未設定です。'; return; }
+  const last = localStorage.getItem(LAST_SYNC_KEY);
+  if (last) {
+    const d = new Date(last);
+    const diff = Math.round((Date.now() - d.getTime()) / 1000);
+    let str;
+    if (diff < 60) str = `${diff}秒前`;
+    else if (diff < 3600) str = `${Math.round(diff/60)}分前`;
+    else if (diff < 86400) str = `${Math.round(diff/3600)}時間前`;
+    else str = d.toLocaleString('ja-JP');
+    el.textContent = `最終同期: ${str}`;
+  } else {
+    el.textContent = '未同期。';
+  }
+}
+
+async function gistFetch() {
+  const cfg = getGistConfig();
+  if (!cfg.pat || !cfg.gistId) return null;
+  if (!navigator.onLine) { setSyncStatus('offline'); return null; }
+  try {
+    setSyncStatus('syncing');
+    const r = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      headers: { 'Authorization': `token ${cfg.pat}`, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const file = data.files[GIST_FILENAME] || Object.values(data.files)[0];
+    if (!file || !file.content) { setSyncStatus('idle'); return []; }
+    const parsed = JSON.parse(file.content);
+    setSyncStatus('idle');
+    setLastSynced(new Date());
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Gist fetch failed', e);
+    setSyncStatus('error');
+    return null;
+  }
+}
+
+async function gistSave() {
+  const cfg = getGistConfig();
+  if (!cfg.pat || !cfg.gistId) return false;
+  if (!navigator.onLine) { setSyncStatus('offline'); return false; }
+  if (syncInFlight) { return false; }
+  try {
+    syncInFlight = true;
+    setSyncStatus('syncing');
+    const body = { files: { [GIST_FILENAME]: { content: JSON.stringify(items, null, 2) } } };
+    const r = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${cfg.pat}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    setSyncStatus('idle');
+    setLastSynced(new Date());
+    return true;
+  } catch (e) {
+    console.error('Gist save failed', e);
+    setSyncStatus('error');
+    return false;
+  } finally {
+    syncInFlight = false;
+  }
+}
+
+function queueGistSave() {
+  if (!hasGistConfig()) return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => gistSave(), 1500);
+}
+
+async function syncFromGist() {
+  if (!hasGistConfig()) return;
+  const remote = await gistFetch();
+  if (remote === null) return;
+  // Use remote as the source of truth
+  items = remote;
+  saveLocal();
+  renderWardrobe();
+  renderLedger();
+  if (currentTab === 'stats') renderStats();
+}
+
+/* manual sync button */
+document.getElementById('syncBtn').addEventListener('click', async () => {
+  if (!hasGistConfig()) { document.getElementById('settingsBtn').click(); return; }
+  await syncFromGist();
+});
+
+/* re-fetch when window regains focus */
+window.addEventListener('focus', () => { if (hasGistConfig()) syncFromGist(); });
+window.addEventListener('online',  () => { setSyncStatus('idle'); if (hasGistConfig()) syncFromGist(); });
+window.addEventListener('offline', () => setSyncStatus('offline'));
+
+/* ============ THEME ============ */
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeToggle').textContent = t === 'dark' ? '☀' : '☾';
+}
+function loadTheme() { applyTheme(localStorage.getItem(THEME_KEY) || 'light'); }
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  applyTheme(next); localStorage.setItem(THEME_KEY, next);
+  if (currentTab === 'stats') renderStats();
+});
+
+/* ============ TABS ============ */
+let currentTab = 'closet';
+document.querySelectorAll('.tab-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    const tab = b.dataset.tab; currentTab = tab;
+    document.getElementById('view-' + tab).classList.add('active');
+    if (tab !== 'entry') exitEditMode();
+    if (tab === 'stats') renderStats();
+    if (tab === 'closet') renderLedger();
+    if (tab === 'wardrobe') renderWardrobe();
+  });
+});
+
+/* ============ WARDROBE STATE ============ */
+let wardrobeLayout = localStorage.getItem('myCloset.layout') || 'category';
+let wardrobeDensity = localStorage.getItem('myCloset.density') || 'medium';
+
+document.querySelectorAll('.layout-btn').forEach(b => {
+  if (b.dataset.layout === wardrobeLayout) b.classList.add('active');
+  else b.classList.remove('active');
+  b.addEventListener('click', () => {
+    wardrobeLayout = b.dataset.layout;
+    localStorage.setItem('myCloset.layout', wardrobeLayout);
+    document.querySelectorAll('.layout-btn').forEach(x => x.classList.toggle('active', x.dataset.layout === wardrobeLayout));
+    if (typeof updateSeasonRowVisibility === 'function') updateSeasonRowVisibility();
+    renderWardrobe();
+  });
+});
+document.querySelectorAll('.density-btn').forEach(b => {
+  if (b.dataset.density === wardrobeDensity) b.classList.add('active');
+  else b.classList.remove('active');
+  b.addEventListener('click', () => {
+    wardrobeDensity = b.dataset.density;
+    localStorage.setItem('myCloset.density', wardrobeDensity);
+    document.querySelectorAll('.density-btn').forEach(x => x.classList.toggle('active', x.dataset.density === wardrobeDensity));
+    renderWardrobe();
+  });
+});
+
+const SEASON_ORDERS = {
+  spring: ['Tops','Outerwear','Bottoms','Shoes','Accessories','Other'],
+  summer: ['Tops','Bottoms','Shoes','Accessories','Outerwear','Other'],
+  fall:   ['Outerwear','Tops','Bottoms','Shoes','Accessories','Other'],
+  winter: ['Outerwear','Tops','Shoes','Bottoms','Accessories','Other']
+};
+function autoSeason() {
+  const m = new Date().getMonth() + 1;
+  if (m >= 3 && m <= 5)  return 'spring';
+  if (m >= 6 && m <= 8)  return 'summer';
+  if (m >= 9 && m <= 11) return 'fall';
+  return 'winter';
+}
+const AUTO_SEASON = autoSeason();
+let wardrobeSeason = localStorage.getItem('myCloset.season') || AUTO_SEASON;
+
+document.querySelectorAll('.season-btn').forEach(b => {
+  if (b.dataset.season === wardrobeSeason) b.classList.add('active');
+  if (b.dataset.season === AUTO_SEASON) b.classList.add('auto-hint');
+  b.addEventListener('click', () => {
+    wardrobeSeason = b.dataset.season;
+    localStorage.setItem('myCloset.season', wardrobeSeason);
+    document.querySelectorAll('.season-btn').forEach(x => x.classList.toggle('active', x.dataset.season === wardrobeSeason));
+    renderWardrobe();
+  });
+});
+
+function updateSeasonRowVisibility() {
+  document.getElementById('seasonRow').classList.toggle('hidden', wardrobeLayout !== 'category');
+}
+updateSeasonRowVisibility();
+
+function renderWardrobeCard(it, idx) {
+  const num = String(idx + 1).padStart(3, '0');
+  const initials = it.brand.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || it.brand.slice(0,2);
+  const photoHTML = it.photo
+    ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=placeholder><div class=brand-large>${escapeHtml(it.brand)}</div><div class=line></div><div class=item-mini>${escapeHtml(it.item)}</div></div>'" />`
+    : `<div class="placeholder">
+         <div class="brand-large">${escapeHtml(it.brand)}</div>
+         <div class="line"></div>
+         <div class="item-mini">${escapeHtml(it.item)}</div>
+       </div>`;
+  return `<article class="closet-card" data-id="${it.id}">
+    <div class="photo">${photoHTML}</div>
+    <div class="info">
+      <div class="num">№ ${num}</div>
+      <div class="brand">${escapeHtml(it.brand)}</div>
+      <div class="item">${escapeHtml(it.item)}</div>
+    </div>
+  </article>`;
+}
+
+function renderWardrobe() {
+  const container = document.getElementById('wardrobe');
+  const meta = document.getElementById('wardrobeMeta');
+  meta.textContent = `— ${items.length} ${items.length === 1 ? 'piece' : 'pieces'} in residence —`;
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="empty">The closet awaits its first piece.</div>`;
+    return;
+  }
+
+  const densityClass = `density-${wardrobeDensity}`;
+  let html = '';
+
+  if (wardrobeLayout === 'category') {
+    const groups = {};
+    items.forEach(it => { (groups[it.category] = groups[it.category] || []).push(it); });
+    const order = SEASON_ORDERS[wardrobeSeason] || SEASON_ORDERS.spring;
+    const ordered = [...order.filter(c => groups[c]),
+                     ...Object.keys(groups).filter(c => !order.includes(c))];
+    ordered.forEach(cat => {
+      const arr = groups[cat].slice().sort((a,b) => b.date.localeCompare(a.date));
+      html += `<div class="cat-section">
+        <div class="cat-section-head">
+          <h3>${escapeHtml(cat)}</h3>
+          <span class="count">${arr.length} ${arr.length === 1 ? 'piece' : 'pieces'}</span>
+        </div>
+        <div class="closet-grid ${densityClass}">
+          ${arr.map((it, i) => renderWardrobeCard(it, i)).join('')}
+        </div>
+      </div>`;
+    });
+  } else if (wardrobeLayout === 'month') {
+    const groups = {};
+    items.forEach(it => { const k = monthKey(it.date); (groups[k] = groups[k] || []).push(it); });
+    const months = Object.keys(groups).sort().reverse();
+    months.forEach(mk => {
+      const arr = groups[mk].slice().sort((a,b) => b.date.localeCompare(a.date));
+      const d = new Date(mk + '-01');
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      html += `<div class="cat-section">
+        <div class="cat-section-head">
+          <h3>${escapeHtml(label)}</h3>
+          <span class="count">${arr.length} ${arr.length === 1 ? 'piece' : 'pieces'}</span>
+        </div>
+        <div class="closet-grid ${densityClass}">
+          ${arr.map((it, i) => renderWardrobeCard(it, i)).join('')}
+        </div>
+      </div>`;
+    });
+  } else {
+    const arr = items.slice().sort((a,b) => b.date.localeCompare(a.date));
+    html = `<div class="closet-grid ${densityClass}">
+      ${arr.map((it, i) => renderWardrobeCard(it, i)).join('')}
+    </div>`;
+  }
+
+  container.innerHTML = html;
+  container.querySelectorAll('.closet-card').forEach(c =>
+    c.addEventListener('click', () => openModal(c.dataset.id))
+  );
+}
+
+/* ============ HELPERS ============ */
+const yen = n => '¥' + Number(n).toLocaleString('en-US');
+const yenShort = n => {
+  if (n >= 10000) return (n / 10000).toFixed(n % 10000 === 0 ? 0 : 1) + '万';
+  return n.toLocaleString('en-US');
+};
+const fmtDate = iso => {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+const monthKey = iso => iso.slice(0, 7);
+const yearKey  = iso => iso.slice(0, 4);
+const escapeHtml = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ============ FILTER ============ */
+function getFiltered() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const cat = document.getElementById('filterCategory').value;
+  const mon = document.getElementById('filterMonth').value;
+  const sort = document.getElementById('sortBy').value;
+
+  let arr = items.filter(it => {
+    if (q && !((it.brand + ' ' + it.item).toLowerCase().includes(q))) return false;
+    if (cat && it.category !== cat) return false;
+    if (mon && monthKey(it.date) !== mon) return false;
+    return true;
+  });
+  switch (sort) {
+    case 'date-asc':  arr.sort((a,b) => a.date.localeCompare(b.date)); break;
+    case 'date-desc': arr.sort((a,b) => b.date.localeCompare(a.date)); break;
+    case 'price-asc': arr.sort((a,b) => a.price - b.price); break;
+    case 'price-desc':arr.sort((a,b) => b.price - a.price); break;
+  }
+  return arr;
+}
+
+function refreshMonthFilter() {
+  const sel = document.getElementById('filterMonth');
+  const cur = sel.value;
+  const months = [...new Set(items.map(it => monthKey(it.date)))].sort().reverse();
+  sel.innerHTML = '<option value="">All</option>' +
+    months.map(m => {
+      const d = new Date(m + '-01');
+      return `<option value="${m}">${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</option>`;
+    }).join('');
+  if (months.includes(cur)) sel.value = cur;
+}
+
+/* ============ LEDGER RENDER ============ */
+function renderLedger() {
+  refreshMonthFilter();
+  const container = document.getElementById('ledger');
+  const list = getFiltered();
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty">The ledger is empty.</div>`;
+    return;
+  }
+
+  // group by year, then month, sorted by current sort direction
+  const sortDir = document.getElementById('sortBy').value.startsWith('date') ?
+    document.getElementById('sortBy').value : 'date-desc';
+  const isDesc = sortDir !== 'date-asc';
+
+  const yearMap = {};
+  list.forEach(it => {
+    const y = yearKey(it.date);
+    const m = monthKey(it.date);
+    yearMap[y] = yearMap[y] || {};
+    yearMap[y][m] = yearMap[y][m] || [];
+    yearMap[y][m].push(it);
+  });
+
+  const years = Object.keys(yearMap).sort((a,b)=> isDesc ? b.localeCompare(a) : a.localeCompare(b));
+  let html = '';
+
+  years.forEach(y => {
+    const yearItems = list.filter(it => yearKey(it.date) === y);
+    const yearTotal = yearItems.reduce((s,x)=>s+x.price,0);
+    html += `<div class="year-block">
+      <div class="year-label">
+        <span class="year-num">${y}</span>
+        <div class="year-summary">
+          <span class="year-count">${yearItems.length} ${yearItems.length === 1 ? 'piece' : 'pieces'}</span>
+          <span class="year-total">${yen(yearTotal)}</span>
+        </div>
+      </div>`;
+
+    const months = Object.keys(yearMap[y]).sort((a,b)=> isDesc ? b.localeCompare(a) : a.localeCompare(b));
+    months.forEach(m => {
+      const monthItems = yearMap[y][m];
+      const mTotal = monthItems.reduce((s,x)=>s+x.price,0);
+      const d = new Date(m + '-01');
+      const monthName = d.toLocaleDateString('en-US', { month: 'long' });
+      const monthNum = d.toLocaleDateString('ja-JP', { month: 'long' });
+
+      html += `<div class="month-block">
+        <div class="month-head">
+          <div class="month-name">${monthName}<span class="num">${monthNum}</span></div>
+          <div class="month-count">${monthItems.length} ${monthItems.length === 1 ? 'piece' : 'pieces'}</div>
+          <div class="month-total">${yen(mTotal)}</div>
+        </div>`;
+
+      monthItems.forEach(it => {
+        const thumb = it.photo
+          ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=ph>${escapeHtml(it.brand.slice(0,2).toUpperCase())}</div>'" />`
+          : `<div class="ph">${escapeHtml(it.brand.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || '◯')}</div>`;
+        html += `<div class="entry" data-id="${it.id}">
+          <div class="thumb">${thumb}</div>
+          <div class="brand">${escapeHtml(it.brand)}</div>
+          <div class="item">${escapeHtml(it.item)}</div>
+          <div class="cat">${escapeHtml(it.category)}</div>
+          <div class="price">${yen(it.price)}</div>
+        </div>`;
+      });
+
+      html += `</div>`;
+    });
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+  container.querySelectorAll('.entry').forEach(e =>
+    e.addEventListener('click', () => openModal(e.dataset.id))
+  );
+}
+
+/* ============ FILTERS BIND ============ */
+['searchInput','filterCategory','filterMonth','sortBy'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderLedger);
+  document.getElementById(id).addEventListener('change', renderLedger);
+});
+document.getElementById('clearFilters').addEventListener('click', () => {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterCategory').value = '';
+  document.getElementById('filterMonth').value = '';
+  document.getElementById('sortBy').value = 'date-desc';
+  renderLedger();
+});
+
+/* ============ EXPORT ============ */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `my-closet-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Exported');
+});
+
+/* ============ FORM ============ */
+const photoPreview = document.getElementById('photoPreview');
+const urlField = document.getElementById('urlField');
+const uploadField = document.getElementById('uploadField');
+const photoUrlInput = document.getElementById('f-photoUrl');
+const photoFileInput = document.getElementById('f-photoFile');
+let pendingPhoto = null;
+let photoMode = 'url';
+
+function setPhotoMode(mode) {
+  photoMode = mode;
+  document.querySelectorAll('.ptab').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  urlField.style.display = mode === 'url' ? 'block' : 'none';
+  uploadField.style.display = mode === 'upload' ? 'block' : 'none';
+  if (mode === 'none') {
+    pendingPhoto = null;
+    renderPhotoPreview();
+  }
+}
+document.querySelectorAll('.ptab').forEach(b => {
+  b.addEventListener('click', () => setPhotoMode(b.dataset.mode));
+});
+
+function renderPhotoPreview() {
+  if (pendingPhoto) {
+    photoPreview.innerHTML = `<img src="${escapeHtml(pendingPhoto)}" alt="preview" onerror="this.parentNode.innerHTML='<div class=placeholder><div class=lg>!</div><span>load failed</span></div>'" />`;
+  } else {
+    const text = photoMode === 'url' ? 'paste URL below' :
+                 photoMode === 'upload' ? 'click to upload' :
+                 'no photo';
+    photoPreview.innerHTML = `<div class="placeholder"><div class="lg">${photoMode === 'none' ? '◯' : '＋'}</div><span>${text}</span></div>`;
+  }
+}
+
+photoPreview.addEventListener('click', () => {
+  if (photoMode === 'upload') photoFileInput.click();
+  else if (photoMode === 'url') photoUrlInput.focus();
+});
+photoUrlInput.addEventListener('input', () => {
+  pendingPhoto = photoUrlInput.value.trim() || null;
+  renderPhotoPreview();
+});
+photoFileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { pendingPhoto = ev.target.result; renderPhotoPreview(); };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('entryForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = {
+    brand: document.getElementById('f-brand').value.trim(),
+    item: document.getElementById('f-item').value.trim(),
+    category: document.getElementById('f-category').value,
+    price: Number(document.getElementById('f-price').value),
+    date: document.getElementById('f-date').value,
+    note: document.getElementById('f-note').value.trim(),
+    photo: pendingPhoto || null
+  };
+  if (editingId) {
+    const idx = items.findIndex(x => x.id === editingId);
+    if (idx >= 0) items[idx] = { ...items[idx], ...data };
+    showToast('Updated');
+  } else {
+    items.unshift({ id: 'i' + Date.now(), ...data });
+    showToast('Added');
+  }
+  save(); resetForm(); exitEditMode();
+  renderWardrobe(); renderLedger();
+  document.querySelector('.tab-btn[data-tab="closet"]').click();
+});
+
+function resetForm() {
+  document.getElementById('entryForm').reset();
+  pendingPhoto = null;
+  setPhotoMode('url');
+  renderPhotoPreview();
+  document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+}
+function exitEditMode() {
+  editingId = null;
+  document.getElementById('entryTitle').textContent = 'New Entry';
+  document.getElementById('submitBtn').textContent = 'Add to Ledger';
+}
+function enterEditMode(it) {
+  editingId = it.id;
+  document.getElementById('f-brand').value = it.brand;
+  document.getElementById('f-item').value = it.item;
+  document.getElementById('f-category').value = it.category;
+  document.getElementById('f-price').value = it.price;
+  document.getElementById('f-date').value = it.date;
+  document.getElementById('f-note').value = it.note || '';
+  pendingPhoto = it.photo || null;
+  if (it.photo && it.photo.startsWith('data:')) setPhotoMode('upload');
+  else if (it.photo) { setPhotoMode('url'); document.getElementById('f-photoUrl').value = it.photo; }
+  else setPhotoMode('none');
+  renderPhotoPreview();
+  document.getElementById('entryTitle').textContent = 'Edit Entry';
+  document.getElementById('submitBtn').textContent = 'Save Changes';
+  document.querySelector('.tab-btn[data-tab="entry"]').click();
+}
+
+/* default date today */
+document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+renderPhotoPreview();
+
+/* ============ MODAL ============ */
+const modalBg = document.getElementById('modalBg');
+function openModal(id) {
+  const it = items.find(x => x.id === id);
+  if (!it) return;
+  document.getElementById('modalPhoto').innerHTML = it.photo
+    ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" onerror="this.parentNode.innerHTML='<div style=\\'text-align:center;padding:30px;\\'><div style=\\'font-family:Inter,Noto Sans JP,sans-serif;font-weight:700;font-size:24px;letter-spacing:.08em;text-transform:uppercase;\\'>${escapeHtml(it.brand)}</div></div>'" />`
+    : `<div style="text-align:center; padding:30px;">
+         <div style="font-family:'Inter','Noto Sans JP',sans-serif; font-weight:700; font-size:24px; letter-spacing:.08em; text-transform:uppercase;">${escapeHtml(it.brand)}</div>
+         <div style="width:40px; height:1px; background:var(--rule); margin:14px auto;"></div>
+         <div style="font-family:'Inter','Noto Sans JP',sans-serif; font-style:italic; color:var(--ink-soft);">${escapeHtml(it.category)}</div>
+       </div>`;
+  document.getElementById('modalBrand').textContent = it.brand;
+  document.getElementById('modalItem').textContent = it.item;
+  document.getElementById('modalPrice').textContent = yen(it.price);
+  document.getElementById('modalCategory').textContent = it.category;
+  document.getElementById('modalDate').textContent = fmtDate(it.date);
+  if (it.note) {
+    document.getElementById('modalNoteRow').style.display = 'flex';
+    document.getElementById('modalNote').textContent = it.note;
+  } else {
+    document.getElementById('modalNoteRow').style.display = 'none';
+  }
+  document.getElementById('modalEdit').onclick = () => { modalBg.classList.remove('active'); enterEditMode(it); };
+  document.getElementById('modalDelete').onclick = () => {
+    if (confirm(`「${it.brand} — ${it.item}」を削除しますか？`)) {
+      items = items.filter(x => x.id !== id);
+      save(); modalBg.classList.remove('active');
+      renderWardrobe(); renderLedger();
+      showToast('Removed');
+    }
+  };
+  modalBg.classList.add('active');
+}
+document.getElementById('modalClose').addEventListener('click', () => modalBg.classList.remove('active'));
+modalBg.addEventListener('click', e => { if (e.target === modalBg) modalBg.classList.remove('active'); });
+
+/* ============ STATS ============ */
+let monthChartInst, catChartInst;
+function renderStats() {
+  const total = items.reduce((s, x) => s + x.price, 0);
+  const now = new Date();
+  const ymKey = now.toISOString().slice(0,7);
+  const yKey = String(now.getFullYear());
+  const yearItems = items.filter(x => yearKey(x.date) === yKey);
+  const yearTotal = yearItems.reduce((s,x)=>s+x.price,0);
+  const monthTotal = items.filter(x => monthKey(x.date) === ymKey).reduce((s,x)=>s+x.price,0);
+  document.getElementById('statItems').textContent = items.length;
+  document.getElementById('statTotal').textContent = yen(total);
+  document.getElementById('statYear').textContent = yen(yearTotal);
+  document.getElementById('statYearLabel').textContent = `${yKey} · ${yearItems.length} ${yearItems.length === 1 ? 'piece' : 'pieces'}`;
+  document.getElementById('statMonth').textContent = yen(monthTotal);
+  document.getElementById('statMonthLabel').textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const monthMap = {};
+  items.forEach(it => { const k = monthKey(it.date); monthMap[k] = (monthMap[k] || 0) + it.price; });
+  const monthsSorted = Object.keys(monthMap).sort();
+  const labels = monthsSorted.map(k => new Date(k + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+  const data = monthsSorted.map(k => monthMap[k]);
+
+  const inkColor = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim();
+  const inkSoft  = getComputedStyle(document.documentElement).getPropertyValue('--ink-soft').trim();
+  const ruleCol  = getComputedStyle(document.documentElement).getPropertyValue('--rule').trim();
+
+  if (monthChartInst) monthChartInst.destroy();
+  monthChartInst = new Chart(document.getElementById('monthChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: inkColor, borderRadius: 0, maxBarThickness: 36 }] },
+    options: {
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => yen(ctx.raw) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: inkSoft, font: { family:'Inter', size: 11 } } },
+        y: { grid: { color: ruleCol + '30' }, ticks: { color: inkSoft, font: { family: 'Inter', size: 11 }, callback: v => '¥' + (v/10000) + '万' } }
+      }
+    }
+  });
+
+  const brandMap = {};
+  items.forEach(it => { brandMap[it.brand] = (brandMap[it.brand] || 0) + it.price; });
+  const brandLabels = Object.keys(brandMap).sort((a, b) => brandMap[b] - brandMap[a]);
+  const brandData = brandLabels.map(k => brandMap[k]);
+  const brandTotal = brandData.reduce((s, x) => s + x, 0);
+  const palette = ['#1a1a1a','#8b1e1e','#6b6256','#a89272','#3d3a36','#bda37a','#5e564b','#7d4a4a','#9c8c70','#4a4540'];
+  const palDark  = ['#f1ead8','#d4b06a','#a89272','#7a7163','#cfc7b0','#8b7e64','#b8b1a0','#c89878','#9d8e72','#dfd6c0'];
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const colors = isDark ? palDark : palette;
+
+  if (catChartInst) catChartInst.destroy();
+  catChartInst = new Chart(document.getElementById('brandChart'), {
+    type: 'doughnut',
+    data: {
+      labels: brandLabels,
+      datasets: [{
+        data: brandData,
+        backgroundColor: brandLabels.map((_, i) => colors[i % colors.length]),
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-elev').trim(),
+        borderWidth: 2
+      }]
+    },
+    options: {
+      cutout: '62%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: inkColor, font: { family: 'Inter', size: 11 }, boxWidth: 10, padding: 12 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const pct = brandTotal ? ((ctx.raw / brandTotal) * 100).toFixed(1) : 0;
+              return `${ctx.label}: ${yen(ctx.raw)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+/* ============ SETTINGS MODAL ============ */
+const settingsBg = document.getElementById('settingsBg');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsClose = document.getElementById('settingsClose');
+const setPatInput = document.getElementById('setPat');
+const setGistIdInput = document.getElementById('setGistId');
+const settingsStatus = document.getElementById('settingsStatus');
+
+settingsBtn.addEventListener('click', () => {
+  const cfg = getGistConfig();
+  setPatInput.value = cfg.pat;
+  setGistIdInput.value = cfg.gistId;
+  settingsStatus.textContent = '';
+  settingsStatus.className = 'settings-status';
+  updateSyncInfo();
+  settingsBg.classList.add('active');
+});
+settingsClose.addEventListener('click', () => settingsBg.classList.remove('active'));
+settingsBg.addEventListener('click', e => { if (e.target === settingsBg) settingsBg.classList.remove('active'); });
+
+document.getElementById('testSyncBtn').addEventListener('click', async () => {
+  const pat = setPatInput.value.trim();
+  const gistId = setGistIdInput.value.trim();
+  if (!pat || !gistId) {
+    settingsStatus.textContent = 'PATとGist IDの両方を入力してください。';
+    settingsStatus.className = 'settings-status error';
+    return;
+  }
+  settingsStatus.textContent = '接続テスト中...';
+  settingsStatus.className = 'settings-status';
+  try {
+    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { 'Authorization': `token ${pat}`, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const fileCount = Object.keys(data.files || {}).length;
+    settingsStatus.textContent = `接続成功 ✓  Gistに ${fileCount}個のファイル`;
+    settingsStatus.className = 'settings-status success';
+  } catch (e) {
+    settingsStatus.textContent = `接続失敗: ${e.message}`;
+    settingsStatus.className = 'settings-status error';
+  }
+});
+
+document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+  const pat = setPatInput.value.trim();
+  const gistId = setGistIdInput.value.trim();
+  if (!pat || !gistId) {
+    if (confirm('PAT/Gist IDをクリアしてオフライン専用に戻しますか？')) {
+      localStorage.removeItem(PAT_KEY);
+      localStorage.removeItem(GISTID_KEY);
+      settingsStatus.textContent = '設定をクリアしました。';
+      settingsStatus.className = 'settings-status';
+      setSyncStatus('idle');
+      updateSyncInfo();
+    }
+    return;
+  }
+  localStorage.setItem(PAT_KEY, pat);
+  localStorage.setItem(GISTID_KEY, gistId);
+  settingsStatus.textContent = '保存しました。同期中...';
+  settingsStatus.className = 'settings-status';
+
+  // Strategy: if local has only sample data and remote has data, pull. Otherwise push local.
+  const remote = await gistFetch();
+  if (remote && remote.length > 0) {
+    if (items.length <= SAMPLE.length && items.every(it => it.id.startsWith('s'))) {
+      // Local is just samples — adopt remote
+      items = remote;
+      saveLocal();
+      renderWardrobe(); renderLedger();
+      settingsStatus.textContent = `Gistから ${remote.length}件 を取得しました ✓`;
+    } else if (confirm(`Gistに既に${remote.length}件のデータがあります。\nOK → Gistの内容で上書き取得\nキャンセル → 現在のローカルデータでGistを上書き保存`)) {
+      items = remote;
+      saveLocal();
+      renderWardrobe(); renderLedger();
+      settingsStatus.textContent = `Gistから ${remote.length}件 を取得しました ✓`;
+    } else {
+      await gistSave();
+      settingsStatus.textContent = `現在のデータをGistに保存しました ✓`;
+    }
+  } else {
+    await gistSave();
+    settingsStatus.textContent = '現在のデータをGistに保存しました ✓';
+  }
+  settingsStatus.className = 'settings-status success';
+  updateSyncInfo();
+  setTimeout(() => { settingsBg.classList.remove('active'); }, 1200);
+});
+
+/* ============ SERVICE WORKER ============ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(e => console.log('SW registration failed', e));
+  });
+}
+
+/* ============ INIT ============ */
+function setRightDate() {
+  document.getElementById('dateRight').textContent =
+    new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+async function init() {
+  loadTheme();
+  load();
+  setRightDate();
+  renderWardrobe();
+  renderLedger();
+  updateSyncInfo();
+  if (hasGistConfig()) {
+    await syncFromGist();
+  }
+}
+init();
+</script>
+</body>
+</html>
