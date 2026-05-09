@@ -943,10 +943,10 @@
 
   <!-- ===== CLOSET (LEDGER) ===== -->
   <section class="view active" id="view-closet">
-    <div class="filters">
+    <form class="filters" autocomplete="off" onsubmit="return false">
       <div>
         <label>Search</label>
-        <input type="text" id="searchInput" placeholder="brand or item..." autocomplete="off" />
+        <input type="search" id="searchInput" name="closet-q" placeholder="brand or item..." autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore="true" data-lpignore="true" aria-autocomplete="none" />
       </div>
       <div>
         <label>Category</label>
@@ -973,9 +973,9 @@
           <option value="price-asc">Price ↑</option>
         </select>
       </div>
-      <button class="small-btn" id="clearFilters">Reset</button>
-      <button class="small-btn" id="exportBtn">Export</button>
-    </div>
+      <button type="button" class="small-btn" id="clearFilters">Reset</button>
+      <button type="button" class="small-btn" id="exportBtn">Export</button>
+    </form>
 
     <div id="ledger"></div>
   </section>
@@ -1679,6 +1679,26 @@ function renderLedger() {
 ['searchInput','filterCategory','filterMonth','sortBy'].forEach(id => {
   document.getElementById(id).addEventListener('input', renderLedger);
   document.getElementById(id).addEventListener('change', renderLedger);
+});
+
+/* Defend against browser autofill on the search input.
+   Clear if the value matches a 32-hex Gist-ID pattern (which would be autofill). */
+function dropSearchAutofill() {
+  const s = document.getElementById('searchInput');
+  if (!s) return false;
+  if (/^[a-f0-9]{32}$/i.test(s.value.trim())) {
+    s.value = '';
+    return true;
+  }
+  return false;
+}
+// Run several times after load to catch delayed autofill
+[0, 100, 300, 800, 1500].forEach(t => setTimeout(() => {
+  if (dropSearchAutofill()) renderLedger();
+}, t));
+// Also clear when the tab becomes active
+document.querySelector('.tab-btn[data-tab="closet"]').addEventListener('click', () => {
+  setTimeout(() => { if (dropSearchAutofill()) renderLedger(); }, 50);
 });
 document.getElementById('clearFilters').addEventListener('click', () => {
   document.getElementById('searchInput').value = '';
