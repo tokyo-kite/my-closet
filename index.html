@@ -281,7 +281,7 @@
     .closet-grid.density-medium { grid-template-columns: repeat(4, 1fr); gap: 16px 8px; }
     .closet-grid.density-large  { grid-template-columns: repeat(2, 1fr); gap: 24px 12px; }
     .closet-grid.density-small  { grid-template-columns: repeat(7, 1fr); gap: 12px 6px; }
-    .closet-card .info .num { display: none; }
+    .closet-card .info .num-row { display: none; }
     .closet-card .info .brand { font-size: 11px; letter-spacing: .03em; }
     .closet-card .info .item { font-size: 12px; }
     .closet-grid.density-small .closet-card .info { display: none; }
@@ -289,42 +289,31 @@
 
   .closet-card { cursor: pointer; transition: transform .25s ease; position: relative; }
   .closet-card:hover { transform: translateY(-3px); }
+  /* Star toggle — small, inline with the № line, opposite side */
+  .num-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
   .star-toggle {
-    position: absolute;
-    top: 6px; right: 6px;
-    width: 26px; height: 26px;
-    border-radius: 50%;
-    background: rgba(245, 241, 232, 0.78);
+    background: transparent;
     border: 0;
-    font-size: 14px;
-    color: var(--ink-mute);
-    cursor: pointer;
-    z-index: 2;
-    display: flex; align-items: center; justify-content: center;
-    transition: opacity .15s, color .15s, background .15s, transform .15s;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    opacity: 0;
-    line-height: 1;
     padding: 0;
-  }
-  .closet-card:hover .star-toggle, .star-toggle.selected { opacity: 1; }
-  .star-toggle:hover { color: var(--ink); transform: scale(1.1); }
-  .star-toggle.selected {
-    background: rgba(26, 26, 26, 0.88);
-    color: #d4b06a;
-  }
-  [data-theme="dark"] .star-toggle {
-    background: rgba(13, 12, 10, 0.78);
+    margin: 0;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
     color: var(--ink-mute);
+    opacity: .35;
+    transition: opacity .15s, color .15s, transform .15s;
   }
-  [data-theme="dark"] .star-toggle.selected {
-    background: rgba(241, 234, 216, 0.92);
-    color: #8b1e1e;
-  }
-  /* Always show on touch devices since hover doesn't apply */
+  .closet-card:hover .star-toggle { opacity: .8; }
+  .star-toggle:hover { color: var(--ink); transform: scale(1.15); opacity: 1; }
+  .star-toggle.selected { color: var(--accent); opacity: 1; }
+  [data-theme="dark"] .star-toggle.selected { color: var(--accent); }
   @media (hover: none) {
-    .star-toggle { opacity: .85; }
+    .closet-card .star-toggle { opacity: .55; }
   }
   .select-count {
     font-size: 9px;
@@ -371,7 +360,7 @@
     font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic;
     font-size: 15px; color: var(--ink-soft); margin-top: 2px; line-height: 1.3;
   }
-  .closet-grid.density-small .closet-card .info .num { display: none; }
+  .closet-grid.density-small .closet-card .info .num-row { display: none; }
   .closet-grid.density-small .closet-card .info .brand { font-size: 11px; }
   .closet-grid.density-small .closet-card .info .item  { font-size: 13px; }
   .closet-grid.density-large .closet-card .info { padding-top: 16px; }
@@ -1433,10 +1422,12 @@ function renderWardrobeCard(it, idx) {
   const starClass = it.selected ? 'star-toggle selected' : 'star-toggle';
   const starGlyph = it.selected ? '★' : '☆';
   return `<article class="closet-card" data-id="${it.id}">
-    <button type="button" class="${starClass}" data-action="star" title="${it.selected ? 'Selected' : 'Add to Select'}">${starGlyph}</button>
     <div class="photo">${photoHTML}</div>
     <div class="info">
-      <div class="num">№ ${num}</div>
+      <div class="num-row">
+        <span class="num">№ ${num}</span>
+        <button type="button" class="${starClass}" data-action="star" title="${it.selected ? 'Selected' : 'Add to Select'}">${starGlyph}</button>
+      </div>
       <div class="brand">${escapeHtml(it.brand)}</div>
       <div class="item">${escapeHtml(it.item)}</div>
     </div>
