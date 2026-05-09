@@ -1161,6 +1161,14 @@
       </details>
       <div id="importStatus" class="settings-status"></div>
     </div>
+
+    <!-- Recompress photos -->
+    <div style="margin-top: 24px; padding-top: 20px; border-top: 0.5px solid var(--rule);">
+      <h3 style="font-size: 11px; letter-spacing: .25em; text-transform: uppercase; margin-bottom: 8px; color: var(--ink-mute); font-weight: 500;">Photo Maintenance</h3>
+      <p class="settings-desc" style="margin-top: 0; font-size: 13px;">既存の大きすぎる写真を圧縮(720px / JPEG 70%)して、同期を高速化。</p>
+      <button type="button" class="edit-btn" id="recompressBtn" style="margin-top: 8px; width: 100%;">Recompress All Photos</button>
+      <div id="recompressStatus" class="settings-status"></div>
+    </div>
   </div>
 </div>
 
@@ -1833,9 +1841,11 @@ photoPreview.addEventListener('drop', e => {
     const file = dt.files[0];
     if (!file.type.startsWith('image/')) return;
     setPhotoMode('upload');
-    const reader = new FileReader();
-    reader.onload = ev => { pendingPhoto = ev.target.result; renderPhotoPreview(); };
-    reader.readAsDataURL(file);
+    compressImage(file).then(d => {
+      pendingPhoto = d;
+      resetPendingTransform();
+      renderPhotoPreview();
+    }).catch(err => console.error('Image processing failed', err));
     return;
   }
   // Case 2: an image was dragged from another browser tab → use the URL
@@ -1860,9 +1870,11 @@ document.addEventListener('paste', e => {
       const file = item.getAsFile();
       if (file) {
         setPhotoMode('upload');
-        const reader = new FileReader();
-        reader.onload = ev => { pendingPhoto = ev.target.result; renderPhotoPreview(); };
-        reader.readAsDataURL(file);
+        compressImage(file).then(d => {
+          pendingPhoto = d;
+          resetPendingTransform();
+          renderPhotoPreview();
+        }).catch(err => console.error('Image processing failed', err));
         e.preventDefault();
         return;
       }
@@ -1874,16 +1886,56 @@ photoUrlInput.addEventListener('input', () => {
   resetPendingTransform();
   renderPhotoPreview();
 });
-photoFileInput.addEventListener('change', e => {
+
+/* Compress an image (File or data URL) to a manageable size for sync.
+   Default: max 720px on the longest edge, JPEG quality 0.7.
+   Typical output: 30-100KB per image. */
+function compressImage(input, maxDim = 720, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const loadAsDataUrl = () => new Promise((res, rej) => {
+      if (typeof input === 'string') return res(input);
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = rej;
+      fr.readAsDataURL(input);
+    });
+    loadAsDataUrl().then(src => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const longest = Math.max(width, height);
+        if (longest > maxDim) {
+          const r = maxDim / longest;
+          width = Math.round(width * r);
+          height = Math.round(height * r);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        try {
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = src;
+    }).catch(reject);
+  });
+}
+
+photoFileInput.addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    pendingPhoto = ev.target.result;
+  try {
+    pendingPhoto = await compressImage(file);
     resetPendingTransform();
     renderPhotoPreview();
-  };
-  reader.readAsDataURL(file);
+  } catch (err) {
+    console.error('Image processing failed', err);
+    showToast('Image processing failed');
+  }
 });
 
 /* zoom slider */
@@ -2299,6 +2351,47 @@ document.getElementById('importBtn').addEventListener('click', () => {
     status.textContent = `エラー: ${e.message}`;
     status.className = 'settings-status error';
   }
+});
+
+/* ============ RECOMPRESS ============ */
+document.getElementById('recompressBtn').addEventListener('click', async () => {
+  const status = document.getElementById('recompressStatus');
+  const btn = document.getElementById('recompressBtn');
+  const candidates = items.filter(it => it.photo && typeof it.photo === 'string' && it.photo.startsWith('data:'));
+  if (candidates.length === 0) {
+    status.textContent = 'data:URL の写真がありません。';
+    status.className = 'settings-status';
+    return;
+  }
+  if (!confirm(`${candidates.length}件の写真を再圧縮します。続行しますか？`)) return;
+  btn.disabled = true;
+  let processed = 0, totalBefore = 0, totalAfter = 0;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!(it.photo && typeof it.photo === 'string' && it.photo.startsWith('data:'))) continue;
+    const before = it.photo.length;
+    totalBefore += before;
+    try {
+      const newPhoto = await compressImage(it.photo);
+      if (newPhoto.length < before) it.photo = newPhoto;
+      totalAfter += it.photo.length;
+      processed++;
+      status.textContent = `${processed} / ${candidates.length} 圧縮中...`;
+      status.className = 'settings-status';
+    } catch (e) {
+      console.error('Recompress failed for item', it.id, e);
+      totalAfter += before;
+    }
+  }
+  saveLocal();
+  status.textContent = `${processed}件完了。 サイズ: ${(totalBefore/1024).toFixed(0)}KB → ${(totalAfter/1024).toFixed(0)}KB. Gist同期中...`;
+  status.className = 'settings-status';
+  await gistSave();
+  status.textContent = `完了 ✓ ${processed}件圧縮、 ${(totalBefore/1024).toFixed(0)}KB → ${(totalAfter/1024).toFixed(0)}KB (-${(((totalBefore-totalAfter)/totalBefore)*100).toFixed(0)}%)`;
+  status.className = 'settings-status success';
+  renderWardrobe();
+  renderLedger();
+  btn.disabled = false;
 });
 
 /* ============ SERVICE WORKER ============ */
