@@ -905,10 +905,10 @@
 
     <div class="closet-controls">
       <div class="layout-toggle">
-        <button class="layout-btn active" data-layout="category">By Category</button>
+        <button class="layout-btn active" data-layout="select">Select <span class="select-count" id="selectCount"></span></button>
+        <button class="layout-btn" data-layout="category">By Category</button>
         <button class="layout-btn" data-layout="month">By Month</button>
         <button class="layout-btn" data-layout="all">All</button>
-        <button class="layout-btn" data-layout="select">Select <span class="select-count" id="selectCount"></span></button>
       </div>
       <div class="density-toggle">
         <button class="density-btn" data-density="large" title="Large">▣</button>
@@ -1351,7 +1351,7 @@ document.querySelectorAll('.tab-btn').forEach(b => {
 });
 
 /* ============ WARDROBE STATE ============ */
-let wardrobeLayout = localStorage.getItem('myCloset.layout') || 'category';
+let wardrobeLayout = localStorage.getItem('myCloset.layout') || 'select';
 let wardrobeDensity = localStorage.getItem('myCloset.density') || 'medium';
 
 document.querySelectorAll('.layout-btn').forEach(b => {
