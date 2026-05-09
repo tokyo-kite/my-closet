@@ -1153,8 +1153,12 @@
     <div style="margin-top: 24px; padding-top: 20px; border-top: 0.5px solid var(--rule);">
       <h3 style="font-size: 11px; letter-spacing: .25em; text-transform: uppercase; margin-bottom: 8px; color: var(--ink-mute); font-weight: 500;">Bulk Import</h3>
       <p class="settings-desc" style="margin-top: 0; font-size: 13px;">JSON 配列で複数アイテムをまとめて追加。既存データは保持されます。</p>
-      <textarea id="importJson" rows="5" placeholder='[{"brand":"...", "item":"...", "category":"Tops", "price":12000, "date":"2024-05-15"}, ...]' style="width: 100%; background: transparent; border: 1px solid var(--rule); padding: 10px; font-family: monospace; font-size: 11px; color: var(--ink); border-radius: 0; outline: none; margin-top: 8px; resize: vertical;"></textarea>
-      <button type="button" class="edit-btn" id="importBtn" style="margin-top: 8px; width: 100%;">Append Items</button>
+      <button type="button" class="edit-btn" id="loadHistoricalBtn" style="margin-top: 4px; width: 100%; background: var(--ink); color: var(--bg);">Import data/historical-import.json</button>
+      <details style="margin-top: 8px;">
+        <summary style="cursor: pointer; font-size: 11px; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-mute);">Or paste JSON manually</summary>
+        <textarea id="importJson" rows="5" placeholder='[{"brand":"...", "item":"...", "category":"Tops", "price":12000, "date":"2024-05-15"}, ...]' style="width: 100%; background: transparent; border: 1px solid var(--rule); padding: 10px; font-family: monospace; font-size: 11px; color: var(--ink); border-radius: 0; outline: none; margin-top: 8px; resize: vertical;"></textarea>
+        <button type="button" class="edit-btn" id="importBtn" style="margin-top: 8px; width: 100%;">Append Items</button>
+      </details>
       <div id="importStatus" class="settings-status"></div>
     </div>
   </div>
@@ -2236,6 +2240,22 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
 });
 
 /* ============ BULK IMPORT ============ */
+document.getElementById('loadHistoricalBtn').addEventListener('click', async () => {
+  const status = document.getElementById('importStatus');
+  status.textContent = 'data/historical-import.json を取得中...';
+  status.className = 'settings-status';
+  try {
+    const r = await fetch('data/historical-import.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const text = await r.text();
+    document.getElementById('importJson').value = text;
+    document.getElementById('importBtn').click();
+  } catch (e) {
+    status.textContent = `読込失敗: ${e.message}`;
+    status.className = 'settings-status error';
+  }
+});
+
 document.getElementById('importBtn').addEventListener('click', () => {
   const ta = document.getElementById('importJson');
   const status = document.getElementById('importStatus');
