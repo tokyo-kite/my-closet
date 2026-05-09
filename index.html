@@ -1148,6 +1148,15 @@
     <div style="margin-top: 24px; padding-top: 20px; border-top: 0.5px solid var(--rule); font-size: 12px; color: var(--ink-mute);">
       <div id="syncInfo">未設定です。</div>
     </div>
+
+    <!-- Bulk import -->
+    <div style="margin-top: 24px; padding-top: 20px; border-top: 0.5px solid var(--rule);">
+      <h3 style="font-size: 11px; letter-spacing: .25em; text-transform: uppercase; margin-bottom: 8px; color: var(--ink-mute); font-weight: 500;">Bulk Import</h3>
+      <p class="settings-desc" style="margin-top: 0; font-size: 13px;">JSON 配列で複数アイテムをまとめて追加。既存データは保持されます。</p>
+      <textarea id="importJson" rows="5" placeholder='[{"brand":"...", "item":"...", "category":"Tops", "price":12000, "date":"2024-05-15"}, ...]' style="width: 100%; background: transparent; border: 1px solid var(--rule); padding: 10px; font-family: monospace; font-size: 11px; color: var(--ink); border-radius: 0; outline: none; margin-top: 8px; resize: vertical;"></textarea>
+      <button type="button" class="edit-btn" id="importBtn" style="margin-top: 8px; width: 100%;">Append Items</button>
+      <div id="importStatus" class="settings-status"></div>
+    </div>
   </div>
 </div>
 
@@ -2224,6 +2233,52 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
   settingsStatus.className = 'settings-status success';
   updateSyncInfo();
   setTimeout(() => { settingsBg.classList.remove('active'); }, 1200);
+});
+
+/* ============ BULK IMPORT ============ */
+document.getElementById('importBtn').addEventListener('click', () => {
+  const ta = document.getElementById('importJson');
+  const status = document.getElementById('importStatus');
+  const text = ta.value.trim();
+  if (!text) {
+    status.textContent = 'JSONが空です。';
+    status.className = 'settings-status error';
+    return;
+  }
+  try {
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) throw new Error('JSONは配列である必要があります');
+    const VALID_CATS = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Other'];
+    const stamp = Date.now();
+    const cleaned = parsed.map((it, i) => {
+      if (!it.brand || typeof it.price !== 'number' || !it.date) {
+        throw new Error(`アイテム${i + 1}に brand / price / date が必要です`);
+      }
+      return {
+        id: 'h' + stamp + '-' + i,
+        brand: String(it.brand).trim(),
+        item: String(it.item || '—').trim(),
+        category: VALID_CATS.includes(it.category) ? it.category : 'Other',
+        price: Number(it.price),
+        date: String(it.date),
+        note: it.note ? String(it.note) : '',
+        photo: it.photo || null,
+        transform: it.transform || null,
+        selected: !!it.selected
+      };
+    });
+    items = items.concat(cleaned);
+    save();
+    renderWardrobe();
+    renderLedger();
+    if (currentTab === 'stats') renderStats();
+    ta.value = '';
+    status.textContent = `${cleaned.length}件のアイテムを追加しました ✓`;
+    status.className = 'settings-status success';
+  } catch (e) {
+    status.textContent = `エラー: ${e.message}`;
+    status.className = 'settings-status error';
+  }
 });
 
 /* ============ SERVICE WORKER ============ */
