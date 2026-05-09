@@ -287,8 +287,51 @@
     .closet-grid.density-small .closet-card .info { display: none; }
   }
 
-  .closet-card { cursor: pointer; transition: transform .25s ease; }
+  .closet-card { cursor: pointer; transition: transform .25s ease; position: relative; }
   .closet-card:hover { transform: translateY(-3px); }
+  .star-toggle {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: rgba(245, 241, 232, 0.78);
+    border: 0;
+    font-size: 14px;
+    color: var(--ink-mute);
+    cursor: pointer;
+    z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .15s, color .15s, background .15s, transform .15s;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0;
+    line-height: 1;
+    padding: 0;
+  }
+  .closet-card:hover .star-toggle, .star-toggle.selected { opacity: 1; }
+  .star-toggle:hover { color: var(--ink); transform: scale(1.1); }
+  .star-toggle.selected {
+    background: rgba(26, 26, 26, 0.88);
+    color: #d4b06a;
+  }
+  [data-theme="dark"] .star-toggle {
+    background: rgba(13, 12, 10, 0.78);
+    color: var(--ink-mute);
+  }
+  [data-theme="dark"] .star-toggle.selected {
+    background: rgba(241, 234, 216, 0.92);
+    color: #8b1e1e;
+  }
+  /* Always show on touch devices since hover doesn't apply */
+  @media (hover: none) {
+    .star-toggle { opacity: .85; }
+  }
+  .select-count {
+    font-size: 9px;
+    margin-left: 4px;
+    opacity: .7;
+    letter-spacing: .1em;
+  }
   .closet-card .photo {
     aspect-ratio: 3 / 4;
     background: var(--paper);
@@ -764,7 +807,9 @@
     font-family: 'Inter', 'Noto Sans JP', sans-serif; font-style: italic; font-weight: 400;
     max-width: 60%; line-height: 1.4;
   }
-  .modal .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 22px; }
+  .modal .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 22px; }
+  .modal .edit-btn.is-selected { background: var(--ink); color: var(--bg); }
+  @media (max-width: 480px) { .modal .actions { grid-template-columns: 1fr; } }
   .modal .delete-btn, .modal .edit-btn {
     background: transparent; border: 1px solid var(--rule); color: var(--ink);
     padding: 12px 18px;
@@ -874,6 +919,7 @@
         <button class="layout-btn active" data-layout="category">By Category</button>
         <button class="layout-btn" data-layout="month">By Month</button>
         <button class="layout-btn" data-layout="all">All</button>
+        <button class="layout-btn" data-layout="select">Select <span class="select-count" id="selectCount"></span></button>
       </div>
       <div class="density-toggle">
         <button class="density-btn" data-density="large" title="Large">▣</button>
@@ -1070,6 +1116,7 @@
           <span class="key">Note</span><span class="val note" id="modalNote"></span>
         </div>
         <div class="actions">
+          <button class="edit-btn" id="modalSelect">☆ Select</button>
           <button class="edit-btn" id="modalEdit">Edit</button>
           <button class="delete-btn" id="modalDelete">Remove</button>
         </div>
@@ -1383,7 +1430,10 @@ function renderWardrobeCard(it, idx) {
          <div class="line"></div>
          <div class="item-mini">${escapeHtml(it.item)}</div>
        </div>`;
+  const starClass = it.selected ? 'star-toggle selected' : 'star-toggle';
+  const starGlyph = it.selected ? '★' : '☆';
   return `<article class="closet-card" data-id="${it.id}">
+    <button type="button" class="${starClass}" data-action="star" title="${it.selected ? 'Selected' : 'Add to Select'}">${starGlyph}</button>
     <div class="photo">${photoHTML}</div>
     <div class="info">
       <div class="num">№ ${num}</div>
@@ -1391,6 +1441,22 @@ function renderWardrobeCard(it, idx) {
       <div class="item">${escapeHtml(it.item)}</div>
     </div>
   </article>`;
+}
+
+function toggleSelected(id) {
+  const it = items.find(x => x.id === id);
+  if (!it) return;
+  it.selected = !it.selected;
+  save();
+  updateSelectCount();
+  renderWardrobe();
+  renderLedger();
+}
+
+function updateSelectCount() {
+  const n = items.filter(x => x.selected).length;
+  const el = document.getElementById('selectCount');
+  if (el) el.textContent = n > 0 ? `(${n})` : '';
 }
 
 function renderWardrobe() {
@@ -1442,6 +1508,18 @@ function renderWardrobe() {
         </div>
       </div>`;
     });
+  } else if (wardrobeLayout === 'select') {
+    const arr = items.filter(x => x.selected).slice().sort((a,b) => b.date.localeCompare(a.date));
+    if (arr.length === 0) {
+      html = `<div class="empty">
+        <div style="margin-bottom:8px;">No selections yet.</div>
+        <div style="font-size:14px; opacity:.7;">Tap the ☆ on any piece to add it here.</div>
+      </div>`;
+    } else {
+      html = `<div class="closet-grid ${densityClass}">
+        ${arr.map((it, i) => renderWardrobeCard(it, i)).join('')}
+      </div>`;
+    }
   } else {
     const arr = items.slice().sort((a,b) => b.date.localeCompare(a.date));
     html = `<div class="closet-grid ${densityClass}">
@@ -1450,9 +1528,18 @@ function renderWardrobe() {
   }
 
   container.innerHTML = html;
-  container.querySelectorAll('.closet-card').forEach(c =>
-    c.addEventListener('click', () => openModal(c.dataset.id))
-  );
+  container.querySelectorAll('.closet-card').forEach(c => {
+    c.addEventListener('click', e => {
+      // If the user clicked the star toggle, don't open the modal
+      if (e.target.closest('[data-action="star"]')) {
+        e.stopPropagation();
+        toggleSelected(c.dataset.id);
+        return;
+      }
+      openModal(c.dataset.id);
+    });
+  });
+  updateSelectCount();
 }
 
 /* ============ HELPERS ============ */
@@ -1932,6 +2019,15 @@ function openModal(id) {
   } else {
     document.getElementById('modalNoteRow').style.display = 'none';
   }
+  const selectBtn = document.getElementById('modalSelect');
+  selectBtn.textContent = it.selected ? '★ Selected' : '☆ Select';
+  selectBtn.classList.toggle('is-selected', !!it.selected);
+  selectBtn.onclick = () => {
+    toggleSelected(id);
+    const cur = items.find(x => x.id === id);
+    selectBtn.textContent = cur && cur.selected ? '★ Selected' : '☆ Select';
+    selectBtn.classList.toggle('is-selected', !!(cur && cur.selected));
+  };
   document.getElementById('modalEdit').onclick = () => { modalBg.classList.remove('active'); enterEditMode(it); };
   document.getElementById('modalDelete').onclick = () => {
     if (confirm(`「${it.brand} — ${it.item}」を削除しますか？`)) {
@@ -2138,6 +2234,7 @@ async function init() {
   setRightDate();
   renderWardrobe();
   renderLedger();
+  updateSelectCount();
   updateSyncInfo();
   if (hasGistConfig()) {
     await syncFromGist();
