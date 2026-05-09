@@ -532,6 +532,12 @@
     transition: background .2s;
   }
   .photo-preview:hover { background: var(--hover); }
+  .photo-preview.drag-over {
+    background: var(--hover);
+    border: 1.5px dashed var(--accent);
+    box-shadow: inset 0 0 0 4px var(--bg);
+  }
+  .photo-preview.drag-over .placeholder .lg { color: var(--accent); }
   .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
   .photo-preview .placeholder { text-align: center; color: var(--ink-mute); padding: 8px; }
   .photo-preview .placeholder .lg {
@@ -1570,8 +1576,8 @@ function renderPhotoPreview() {
   if (pendingPhoto) {
     photoPreview.innerHTML = `<img src="${escapeHtml(pendingPhoto)}" alt="preview" onerror="this.parentNode.innerHTML='<div class=placeholder><div class=lg>!</div><span>load failed</span></div>'" />`;
   } else {
-    const text = photoMode === 'url' ? 'paste URL below' :
-                 photoMode === 'upload' ? 'click to upload' :
+    const text = photoMode === 'url' ? 'drop or paste URL' :
+                 photoMode === 'upload' ? 'click or drop image' :
                  'no photo';
     photoPreview.innerHTML = `<div class="placeholder"><div class="lg">${photoMode === 'none' ? '◯' : '＋'}</div><span>${text}</span></div>`;
   }
@@ -1580,6 +1586,71 @@ function renderPhotoPreview() {
 photoPreview.addEventListener('click', () => {
   if (photoMode === 'upload') photoFileInput.click();
   else if (photoMode === 'url') photoUrlInput.focus();
+  else if (photoMode === 'none') { setPhotoMode('upload'); photoFileInput.click(); }
+});
+
+/* drag & drop */
+let dragDepth = 0;
+photoPreview.addEventListener('dragenter', e => {
+  e.preventDefault();
+  dragDepth++;
+  photoPreview.classList.add('drag-over');
+});
+photoPreview.addEventListener('dragleave', e => {
+  e.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) photoPreview.classList.remove('drag-over');
+});
+photoPreview.addEventListener('dragover', e => {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+});
+photoPreview.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0;
+  photoPreview.classList.remove('drag-over');
+  const dt = e.dataTransfer;
+  if (!dt) return;
+  // Case 1: an actual file was dropped
+  if (dt.files && dt.files.length > 0) {
+    const file = dt.files[0];
+    if (!file.type.startsWith('image/')) return;
+    setPhotoMode('upload');
+    const reader = new FileReader();
+    reader.onload = ev => { pendingPhoto = ev.target.result; renderPhotoPreview(); };
+    reader.readAsDataURL(file);
+    return;
+  }
+  // Case 2: an image was dragged from another browser tab → use the URL
+  const url = dt.getData('text/uri-list') || dt.getData('text/plain');
+  if (url && /^https?:\/\//.test(url)) {
+    setPhotoMode('url');
+    photoUrlInput.value = url.split('\n')[0].trim();
+    pendingPhoto = photoUrlInput.value;
+    renderPhotoPreview();
+  }
+});
+
+/* paste support — when New Entry is active and clipboard has an image */
+document.addEventListener('paste', e => {
+  if (currentTab !== 'entry') return;
+  // Don't intercept when pasting into a regular text input
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' && t.type === 'url')) return;
+  const items = e.clipboardData?.items || [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) {
+        setPhotoMode('upload');
+        const reader = new FileReader();
+        reader.onload = ev => { pendingPhoto = ev.target.result; renderPhotoPreview(); };
+        reader.readAsDataURL(file);
+        e.preventDefault();
+        return;
+      }
+    }
+  }
 });
 photoUrlInput.addEventListener('input', () => {
   pendingPhoto = photoUrlInput.value.trim() || null;
