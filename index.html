@@ -538,7 +538,62 @@
     box-shadow: inset 0 0 0 4px var(--bg);
   }
   .photo-preview.drag-over .placeholder .lg { color: var(--accent); }
-  .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-preview img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transform-origin: center;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
+  .photo-preview.has-image { cursor: grab; }
+  .photo-preview.grabbing { cursor: grabbing; }
+
+  .photo-controls {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 6px 0;
+    border-bottom: 0.5px solid var(--hairline);
+  }
+  .photo-controls.show { display: flex; }
+  .photo-controls .zoom-label {
+    font-size: 9px; letter-spacing: .25em; text-transform: uppercase;
+    color: var(--ink-mute); min-width: 32px;
+  }
+  .photo-controls input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 2px;
+    background: var(--rule);
+    outline: none;
+    margin: 0;
+  }
+  .photo-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--ink);
+    cursor: pointer;
+    border: 0;
+  }
+  .photo-controls input[type="range"]::-moz-range-thumb {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--ink);
+    cursor: pointer;
+    border: 0;
+  }
+  .photo-controls .reset-btn {
+    background: transparent; border: 0;
+    color: var(--ink-mute);
+    font-size: 9px; letter-spacing: .25em; text-transform: uppercase;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .photo-controls .reset-btn:hover { color: var(--ink); }
   .photo-preview .placeholder { text-align: center; color: var(--ink-mute); padding: 8px; }
   .photo-preview .placeholder .lg {
     font-family: 'Inter', 'Noto Sans JP', sans-serif;
@@ -887,6 +942,11 @@
           <div class="placeholder">
             <div class="lg">＋</div>
           </div>
+        </div>
+        <div class="photo-controls" id="photoControls">
+          <span class="zoom-label" id="zoomVal">1.0×</span>
+          <input type="range" id="zoomSlider" min="100" max="300" value="100" step="10" />
+          <button type="button" class="reset-btn" id="resetTransform">reset</button>
         </div>
         <div class="photo-tabs">
           <button type="button" class="ptab active" data-mode="url">URL</button>
@@ -1315,8 +1375,9 @@ updateSeasonRowVisibility();
 function renderWardrobeCard(it, idx) {
   const num = String(idx + 1).padStart(3, '0');
   const initials = it.brand.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || it.brand.slice(0,2);
+  const txStyle = transformToCSS(it.transform);
   const photoHTML = it.photo
-    ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=placeholder><div class=brand-large>${escapeHtml(it.brand)}</div><div class=line></div><div class=item-mini>${escapeHtml(it.item)}</div></div>'" />`
+    ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" loading="lazy" style="${txStyle}" onerror="this.parentNode.innerHTML='<div class=placeholder><div class=brand-large>${escapeHtml(it.brand)}</div><div class=line></div><div class=item-mini>${escapeHtml(it.item)}</div></div>'" />`
     : `<div class="placeholder">
          <div class="brand-large">${escapeHtml(it.brand)}</div>
          <div class="line"></div>
@@ -1503,8 +1564,9 @@ function renderLedger() {
         </div>`;
 
       monthItems.forEach(it => {
+        const txStyle = transformToCSS(it.transform);
         const thumb = it.photo
-          ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=ph>${escapeHtml(it.brand.slice(0,2).toUpperCase())}</div>'" />`
+          ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" loading="lazy" style="${txStyle}" onerror="this.parentNode.innerHTML='<div class=ph>${escapeHtml(it.brand.slice(0,2).toUpperCase())}</div>'" />`
           : `<div class="ph">${escapeHtml(it.brand.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || '◯')}</div>`;
         html += `<div class="entry" data-id="${it.id}">
           <div class="thumb">${thumb}</div>
@@ -1572,18 +1634,62 @@ document.querySelectorAll('.ptab').forEach(b => {
   b.addEventListener('click', () => setPhotoMode(b.dataset.mode));
 });
 
+/* photo transform: { s: scale, tx, ty: normalized translation 0-1 of container }
+   Stored alongside photo so cropping is preserved across views. */
+let pendingTransform = { s: 1, tx: 0, ty: 0 };
+
+function transformToCSS(t) {
+  if (!t || (t.s === 1 && t.tx === 0 && t.ty === 0)) return '';
+  const sx = (t.tx || 0) * 100;
+  const sy = (t.ty || 0) * 100;
+  return `transform: translate(${sx}%, ${sy}%) scale(${t.s});`;
+}
+
+function applyPendingTransform() {
+  const img = photoPreview.querySelector('img');
+  if (!img) return;
+  const sx = (pendingTransform.tx || 0) * 100;
+  const sy = (pendingTransform.ty || 0) * 100;
+  img.style.transform = `translate(${sx}%, ${sy}%) scale(${pendingTransform.s})`;
+}
+
+function clampTransform(t) {
+  const max = (t.s - 1) / 2;
+  t.tx = Math.max(-max, Math.min(max, t.tx));
+  t.ty = Math.max(-max, Math.min(max, t.ty));
+}
+
+function resetPendingTransform() {
+  pendingTransform = { s: 1, tx: 0, ty: 0 };
+  const slider = document.getElementById('zoomSlider');
+  if (slider) slider.value = 100;
+  const lbl = document.getElementById('zoomVal');
+  if (lbl) lbl.textContent = '1.0×';
+}
+
+function showPhotoControls(show) {
+  document.getElementById('photoControls').classList.toggle('show', show);
+  photoPreview.classList.toggle('has-image', show);
+}
+
 function renderPhotoPreview() {
   if (pendingPhoto) {
-    photoPreview.innerHTML = `<img src="${escapeHtml(pendingPhoto)}" alt="preview" onerror="this.parentNode.innerHTML='<div class=placeholder><div class=lg>!</div><span>load failed</span></div>'" />`;
+    photoPreview.innerHTML = `<img src="${escapeHtml(pendingPhoto)}" alt="preview" onerror="this.parentNode.innerHTML='<div class=placeholder><div class=lg>!</div><span>load failed</span></div>';window.dispatchEvent(new Event('photoLoadFail'))" />`;
+    showPhotoControls(true);
+    applyPendingTransform();
   } else {
     const text = photoMode === 'url' ? 'drop or paste URL' :
                  photoMode === 'upload' ? 'click or drop image' :
                  'no photo';
     photoPreview.innerHTML = `<div class="placeholder"><div class="lg">${photoMode === 'none' ? '◯' : '＋'}</div><span>${text}</span></div>`;
+    showPhotoControls(false);
   }
 }
+window.addEventListener('photoLoadFail', () => showPhotoControls(false));
 
+let dragMoved = false;
 photoPreview.addEventListener('click', () => {
+  if (dragMoved) { dragMoved = false; return; }
   if (photoMode === 'upload') photoFileInput.click();
   else if (photoMode === 'url') photoUrlInput.focus();
   else if (photoMode === 'none') { setPhotoMode('upload'); photoFileInput.click(); }
@@ -1654,18 +1760,88 @@ document.addEventListener('paste', e => {
 });
 photoUrlInput.addEventListener('input', () => {
   pendingPhoto = photoUrlInput.value.trim() || null;
+  resetPendingTransform();
   renderPhotoPreview();
 });
 photoFileInput.addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => { pendingPhoto = ev.target.result; renderPhotoPreview(); };
+  reader.onload = ev => {
+    pendingPhoto = ev.target.result;
+    resetPendingTransform();
+    renderPhotoPreview();
+  };
   reader.readAsDataURL(file);
 });
 
+/* zoom slider */
+document.getElementById('zoomSlider').addEventListener('input', e => {
+  pendingTransform.s = parseInt(e.target.value, 10) / 100;
+  document.getElementById('zoomVal').textContent = pendingTransform.s.toFixed(1) + '×';
+  clampTransform(pendingTransform);
+  applyPendingTransform();
+});
+
+document.getElementById('resetTransform').addEventListener('click', () => {
+  resetPendingTransform();
+  applyPendingTransform();
+});
+
+/* drag to reposition (only meaningful when zoomed) */
+let dragState = null;
+photoPreview.addEventListener('pointerdown', e => {
+  if (!pendingPhoto || pendingTransform.s <= 1) return;
+  if (e.target.closest('.photo-controls')) return;
+  e.preventDefault();
+  const rect = photoPreview.getBoundingClientRect();
+  dragState = {
+    pid: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    origTx: pendingTransform.tx,
+    origTy: pendingTransform.ty,
+    w: rect.width,
+    h: rect.height
+  };
+  try { photoPreview.setPointerCapture(e.pointerId); } catch (_) {}
+  photoPreview.classList.add('grabbing');
+});
+photoPreview.addEventListener('pointermove', e => {
+  if (!dragState || dragState.pid !== e.pointerId) return;
+  const dx = (e.clientX - dragState.startX) / dragState.w;
+  const dy = (e.clientY - dragState.startY) / dragState.h;
+  if (Math.abs(dx) > 0.005 || Math.abs(dy) > 0.005) dragMoved = true;
+  pendingTransform.tx = dragState.origTx + dx;
+  pendingTransform.ty = dragState.origTy + dy;
+  clampTransform(pendingTransform);
+  applyPendingTransform();
+});
+function endDrag(e) {
+  if (!dragState) return;
+  try { photoPreview.releasePointerCapture(dragState.pid); } catch (_) {}
+  dragState = null;
+  photoPreview.classList.remove('grabbing');
+}
+photoPreview.addEventListener('pointerup', endDrag);
+photoPreview.addEventListener('pointercancel', endDrag);
+
+/* wheel to zoom (desktop) */
+photoPreview.addEventListener('wheel', e => {
+  if (!pendingPhoto) return;
+  e.preventDefault();
+  const delta = -e.deltaY * 0.002;
+  const newScale = Math.max(1, Math.min(3, pendingTransform.s + delta));
+  pendingTransform.s = newScale;
+  document.getElementById('zoomSlider').value = Math.round(newScale * 100);
+  document.getElementById('zoomVal').textContent = newScale.toFixed(1) + '×';
+  clampTransform(pendingTransform);
+  applyPendingTransform();
+}, { passive: false });
+
 document.getElementById('entryForm').addEventListener('submit', e => {
   e.preventDefault();
+  const hasTransform = pendingPhoto && (pendingTransform.s !== 1 || pendingTransform.tx !== 0 || pendingTransform.ty !== 0);
   const data = {
     brand: document.getElementById('f-brand').value.trim(),
     item: document.getElementById('f-item').value.trim(),
@@ -1673,7 +1849,8 @@ document.getElementById('entryForm').addEventListener('submit', e => {
     price: Number(document.getElementById('f-price').value),
     date: document.getElementById('f-date').value,
     note: document.getElementById('f-note').value.trim(),
-    photo: pendingPhoto || null
+    photo: pendingPhoto || null,
+    transform: hasTransform ? { s: pendingTransform.s, tx: pendingTransform.tx, ty: pendingTransform.ty } : null
   };
   if (editingId) {
     const idx = items.findIndex(x => x.id === editingId);
@@ -1691,6 +1868,7 @@ document.getElementById('entryForm').addEventListener('submit', e => {
 function resetForm() {
   document.getElementById('entryForm').reset();
   pendingPhoto = null;
+  resetPendingTransform();
   setPhotoMode('url');
   renderPhotoPreview();
   document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
@@ -1709,6 +1887,14 @@ function enterEditMode(it) {
   document.getElementById('f-date').value = it.date;
   document.getElementById('f-note').value = it.note || '';
   pendingPhoto = it.photo || null;
+  // Restore transform if any
+  if (it.transform) {
+    pendingTransform = { s: it.transform.s || 1, tx: it.transform.tx || 0, ty: it.transform.ty || 0 };
+    document.getElementById('zoomSlider').value = Math.round(pendingTransform.s * 100);
+    document.getElementById('zoomVal').textContent = pendingTransform.s.toFixed(1) + '×';
+  } else {
+    resetPendingTransform();
+  }
   if (it.photo && it.photo.startsWith('data:')) setPhotoMode('upload');
   else if (it.photo) { setPhotoMode('url'); document.getElementById('f-photoUrl').value = it.photo; }
   else setPhotoMode('none');
@@ -1727,8 +1913,9 @@ const modalBg = document.getElementById('modalBg');
 function openModal(id) {
   const it = items.find(x => x.id === id);
   if (!it) return;
+  const modalTxStyle = transformToCSS(it.transform);
   document.getElementById('modalPhoto').innerHTML = it.photo
-    ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" onerror="this.parentNode.innerHTML='<div style=\\'text-align:center;padding:30px;\\'><div style=\\'font-family:Inter,Noto Sans JP,sans-serif;font-weight:700;font-size:24px;letter-spacing:.08em;text-transform:uppercase;\\'>${escapeHtml(it.brand)}</div></div>'" />`
+    ? `<img src="${escapeHtml(it.photo)}" alt="${escapeHtml(it.brand)}" style="${modalTxStyle}" onerror="this.parentNode.innerHTML='<div style=\\'text-align:center;padding:30px;\\'><div style=\\'font-family:Inter,Noto Sans JP,sans-serif;font-weight:700;font-size:24px;letter-spacing:.08em;text-transform:uppercase;\\'>${escapeHtml(it.brand)}</div></div>'" />`
     : `<div style="text-align:center; padding:30px;">
          <div style="font-family:'Inter','Noto Sans JP',sans-serif; font-weight:700; font-size:24px; letter-spacing:.08em; text-transform:uppercase;">${escapeHtml(it.brand)}</div>
          <div style="width:40px; height:1px; background:var(--rule); margin:14px auto;"></div>
