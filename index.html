@@ -1142,7 +1142,12 @@
 
     <div class="actions">
       <button class="edit-btn" id="testSyncBtn">Test Connection</button>
-      <button class="edit-btn" id="saveSettingsBtn" style="background: var(--ink); color: var(--bg);">Save</button>
+      <button class="edit-btn" id="saveSettingsBtn" style="background: var(--ink); color: var(--bg);">Save (Pull from Gist)</button>
+    </div>
+
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 0.5px dashed var(--hairline);">
+      <button type="button" class="edit-btn" id="pushLocalBtn" style="width: 100%; border-color: var(--accent); color: var(--accent);">Push Local → Gist (overwrite)</button>
+      <p class="settings-desc" style="margin-top: 6px; font-size: 12px;">⚠️ ローカルの内容で Gist を上書きします。通常使う必要はありません。意図的な操作のみ。</p>
     </div>
 
     <div style="margin-top: 24px; padding-top: 20px; border-top: 0.5px solid var(--rule); font-size: 12px; color: var(--ink-mute);">
@@ -2261,34 +2266,82 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
   }
   localStorage.setItem(PAT_KEY, pat);
   localStorage.setItem(GISTID_KEY, gistId);
-  settingsStatus.textContent = '保存しました。同期中...';
+  settingsStatus.textContent = '保存しました。Gistから取得中...';
   settingsStatus.className = 'settings-status';
 
-  // Strategy: if local has only sample data and remote has data, pull. Otherwise push local.
+  // SAFE STRATEGY: Save always pulls from Gist. Never auto-pushes.
+  // (Push direction is the explicit "Push to Gist" button below, with confirmation.)
   const remote = await gistFetch();
-  if (remote && remote.length > 0) {
-    if (items.length <= SAMPLE.length && items.every(it => it.id.startsWith('s'))) {
-      // Local is just samples — adopt remote
-      items = remote;
-      saveLocal();
-      renderWardrobe(); renderLedger();
-      settingsStatus.textContent = `Gistから ${remote.length}件 を取得しました ✓`;
-    } else if (confirm(`Gistに既に${remote.length}件のデータがあります。\nOK → Gistの内容で上書き取得\nキャンセル → 現在のローカルデータでGistを上書き保存`)) {
-      items = remote;
-      saveLocal();
-      renderWardrobe(); renderLedger();
-      settingsStatus.textContent = `Gistから ${remote.length}件 を取得しました ✓`;
-    } else {
-      await gistSave();
-      settingsStatus.textContent = `現在のデータをGistに保存しました ✓`;
-    }
-  } else {
-    await gistSave();
-    settingsStatus.textContent = '現在のデータをGistに保存しました ✓';
+  if (remote === null) {
+    settingsStatus.textContent = 'Gist接続に失敗しました。Test Connectionで確認してください。';
+    settingsStatus.className = 'settings-status error';
+    return;
   }
-  settingsStatus.className = 'settings-status success';
+  if (remote.length === 0) {
+    settingsStatus.textContent = `設定保存。Gistは空です。「Push Local → Gist」でローカル(${items.length}件)を送信できます。`;
+    settingsStatus.className = 'settings-status';
+  } else {
+    items = remote;
+    saveLocal();
+    renderWardrobe(); renderLedger();
+    if (currentTab === 'stats') renderStats();
+    settingsStatus.textContent = `Gistから ${remote.length}件 を取得しました ✓`;
+    settingsStatus.className = 'settings-status success';
+  }
   updateSyncInfo();
-  setTimeout(() => { settingsBg.classList.remove('active'); }, 1200);
+  setTimeout(() => { settingsBg.classList.remove('active'); }, 1500);
+});
+
+/* Manual push direction — explicit and confirmed */
+document.getElementById('pushLocalBtn').addEventListener('click', async () => {
+  if (!hasGistConfig()) {
+    settingsStatus.textContent = 'PATとGist IDを設定してください。';
+    settingsStatus.className = 'settings-status error';
+    return;
+  }
+  settingsStatus.textContent = 'Gistの現在の状態を確認中...';
+  settingsStatus.className = 'settings-status';
+  const remote = await gistFetch();
+  if (remote === null) {
+    settingsStatus.textContent = 'Gist取得失敗。接続を確認してください。';
+    settingsStatus.className = 'settings-status error';
+    return;
+  }
+  const localCount = items.length;
+  const remoteCount = remote.length;
+  // First confirmation
+  if (!confirm(
+    `⚠️ Gistを上書きします。\n\n` +
+    `Gist現在: ${remoteCount}件\n` +
+    `ローカル: ${localCount}件\n` +
+    `差分: ${localCount - remoteCount > 0 ? '+' : ''}${localCount - remoteCount}件\n\n` +
+    `この操作は元に戻せません(Gistの履歴からは復元可能)。続行しますか？`
+  )) {
+    settingsStatus.textContent = 'キャンセルしました。';
+    settingsStatus.className = 'settings-status';
+    return;
+  }
+  // Extra confirmation if local is significantly smaller (potential data loss)
+  if (remoteCount > 5 && localCount < remoteCount * 0.5) {
+    if (!confirm(
+      `⚠️⚠️ 警告: ローカル(${localCount}件)はGist(${remoteCount}件)の半分以下です。\n` +
+      `データ消失の可能性があります。\n\n` +
+      `本当に ${remoteCount} → ${localCount} に上書きしますか？`
+    )) {
+      settingsStatus.textContent = 'キャンセルしました。';
+      settingsStatus.className = 'settings-status';
+      return;
+    }
+  }
+  const ok = await gistSave();
+  if (ok) {
+    settingsStatus.textContent = `Gistに ${localCount}件 を保存しました ✓`;
+    settingsStatus.className = 'settings-status success';
+    updateSyncInfo();
+  } else {
+    settingsStatus.textContent = 'Gist保存失敗。コンソールを確認してください。';
+    settingsStatus.className = 'settings-status error';
+  }
 });
 
 /* ============ BULK IMPORT ============ */
