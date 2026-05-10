@@ -138,9 +138,45 @@
   #syncBtn.offline { opacity: .5; }
   @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
   @media (max-width: 720px) {
-    nav.tabs { padding: 18px 0 14px; }
-    nav.tabs button.tab-btn { padding: 6px 10px; font-size: 11px; letter-spacing: .2em; }
-    .nav-actions { position: static; transform: none; margin-top: 10px; }
+    nav.tabs {
+      padding: 14px 0 10px;
+      flex-wrap: wrap;
+      gap: 0;
+    }
+    /* 4 tabs split the full row evenly */
+    nav.tabs button.tab-btn {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 9px 2px;
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-align: center;
+      border-right: 0.5px solid var(--rule);
+    }
+    nav.tabs button.tab-btn:last-of-type { border-right: 0; }
+    /* Replace em-dash active marker with a cleaner inverted block */
+    nav.tabs button.tab-btn.active::before,
+    nav.tabs button.tab-btn.active::after { content: ""; }
+    nav.tabs button.tab-btn.active {
+      background: var(--ink);
+      color: var(--bg);
+      font-weight: 600;
+    }
+    /* Action icons drop to a new full-width row, centered */
+    .nav-actions {
+      flex-basis: 100%;
+      width: 100%;
+      position: static;
+      transform: none;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 0.5px dashed var(--hairline);
+    }
+    .nav-icon {
+      width: 32px; height: 32px; font-size: 12px;
+    }
   }
 
   /* ---------- Section head ---------- */
@@ -162,10 +198,34 @@
   /* ---------- Filters ---------- */
   .filters {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr auto auto;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
     gap: 14px; margin-bottom: 30px; align-items: end;
   }
-  @media (max-width: 900px) { .filters { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 900px) {
+    .filters {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 22px;
+    }
+    .filters label {
+      font-size: 8px;
+      letter-spacing: .15em;
+      margin-bottom: 4px;
+    }
+    .filters input,
+    .filters select {
+      font-size: 13px;
+      padding: 6px 0;
+    }
+    .filters input::placeholder {
+      font-size: 13px;
+    }
+    .filters select {
+      background-position: calc(100% - 8px) 13px, calc(100% - 4px) 13px;
+      background-size: 4px 4px, 4px 4px;
+      padding-right: 12px;
+    }
+  }
   .filters label {
     display: block; font-size: 9px; letter-spacing: .3em; text-transform: uppercase;
     color: var(--ink-mute); margin-bottom: 6px; font-weight: 500;
@@ -874,11 +934,6 @@
       <h1 class="title serif">MY CLOSET</h1>
       <div class="right" id="dateRight">— · —</div>
     </div>
-    <div class="masthead-sub">
-      <span>Curated by Takuro</span>
-      <em>"Less, but better."</em>
-      <span>Est. 2026</span>
-    </div>
   </header>
 
   <!-- ===== NAV ===== -->
@@ -962,8 +1017,6 @@
           <option value="price-asc">Price ↑</option>
         </select>
       </div>
-      <button type="button" class="small-btn" id="clearFilters">Reset</button>
-      <button type="button" class="small-btn" id="exportBtn">Export</button>
     </form>
 
     <div id="ledger"></div>
@@ -1173,6 +1226,13 @@
       <p class="settings-desc" style="margin-top: 0; font-size: 13px;">既存の大きすぎる写真を圧縮(720px / JPEG 70%)して、同期を高速化。</p>
       <button type="button" class="edit-btn" id="recompressBtn" style="margin-top: 8px; width: 100%;">Recompress All Photos</button>
       <div id="recompressStatus" class="settings-status"></div>
+    </div>
+
+    <!-- Export -->
+    <div style="margin-top: 24px; padding-top: 20px; border-top: 0.5px solid var(--rule);">
+      <h3 style="font-size: 11px; letter-spacing: .25em; text-transform: uppercase; margin-bottom: 8px; color: var(--ink-mute); font-weight: 500;">Export</h3>
+      <p class="settings-desc" style="margin-top: 0; font-size: 13px;">全データを JSON ファイルとしてダウンロード(バックアップ用)。</p>
+      <button type="button" class="edit-btn" id="exportBtn" style="margin-top: 8px; width: 100%;">Export All Data</button>
     </div>
   </div>
 </div>
@@ -1717,15 +1777,7 @@ function dropSearchAutofill() {
 document.querySelector('.tab-btn[data-tab="closet"]').addEventListener('click', () => {
   setTimeout(() => { if (dropSearchAutofill()) renderLedger(); }, 50);
 });
-document.getElementById('clearFilters').addEventListener('click', () => {
-  document.getElementById('searchInput').value = '';
-  document.getElementById('filterCategory').value = '';
-  document.getElementById('filterMonth').value = '';
-  document.getElementById('sortBy').value = 'date-desc';
-  renderLedger();
-});
-
-/* ============ EXPORT ============ */
+/* ============ EXPORT (in Settings) ============ */
 document.getElementById('exportBtn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
