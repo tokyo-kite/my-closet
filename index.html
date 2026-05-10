@@ -804,6 +804,69 @@
   }
   .chart-wrap canvas { max-height: 320px; }
 
+  /* Brand ranking list */
+  .brand-ranking {
+    max-height: 520px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .brand-row {
+    display: grid;
+    grid-template-columns: 26px 1fr 86px 50px;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 0.5px solid var(--hairline);
+  }
+  .brand-row:last-child { border-bottom: 0; }
+  .brand-row .rank {
+    font-size: 10px;
+    letter-spacing: .12em;
+    color: var(--ink-mute);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .brand-row .brand-name {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .02em;
+    margin-bottom: 5px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .brand-row .brand-bar {
+    height: 3px;
+    background: var(--hairline);
+    position: relative;
+    overflow: hidden;
+  }
+  .brand-row .brand-fill {
+    position: absolute; top: 0; left: 0; height: 100%;
+    background: var(--ink);
+    transition: width .4s ease;
+  }
+  .brand-row.top-1 .brand-fill { background: var(--accent); }
+  .brand-row .amount {
+    font-size: 13px;
+    font-weight: 600;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .brand-row .pct {
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-align: right;
+    letter-spacing: .03em;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 600px) {
+    .brand-row { grid-template-columns: 22px 1fr 76px 44px; gap: 8px; }
+    .brand-row .brand-name { font-size: 12px; }
+    .brand-row .amount { font-size: 12px; }
+  }
+
   /* ---------- Modal ---------- */
   .modal-bg {
     position: fixed; inset: 0;
@@ -1129,8 +1192,8 @@
       </div>
       <div class="chart-wrap">
         <h3>By Brand</h3>
-        <div class="sub">ブランド別の支出内訳（金額ベース）。</div>
-        <canvas id="brandChart"></canvas>
+        <div class="sub">ブランド別の支出ランキング（金額ベース）。</div>
+        <div id="brandRanking" class="brand-ranking"></div>
       </div>
     </div>
   </section>
@@ -2215,46 +2278,36 @@ function renderStats() {
     }
   });
 
+  // Brand ranking list — sort by amount desc, render as ranked horizontal bars
   const brandMap = {};
   items.forEach(it => { brandMap[it.brand] = (brandMap[it.brand] || 0) + it.price; });
   const brandLabels = Object.keys(brandMap).sort((a, b) => brandMap[b] - brandMap[a]);
-  const brandData = brandLabels.map(k => brandMap[k]);
-  const brandTotal = brandData.reduce((s, x) => s + x, 0);
-  const palette = ['#1a1a1a','#8b1e1e','#6b6256','#a89272','#3d3a36','#bda37a','#5e564b','#7d4a4a','#9c8c70','#4a4540'];
-  const palDark  = ['#f1ead8','#d4b06a','#a89272','#7a7163','#cfc7b0','#8b7e64','#b8b1a0','#c89878','#9d8e72','#dfd6c0'];
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const colors = isDark ? palDark : palette;
+  const brandTotal = brandLabels.reduce((s, k) => s + brandMap[k], 0);
+  const topAmount = brandLabels.length ? brandMap[brandLabels[0]] : 0;
 
-  if (catChartInst) catChartInst.destroy();
-  catChartInst = new Chart(document.getElementById('brandChart'), {
-    type: 'doughnut',
-    data: {
-      labels: brandLabels,
-      datasets: [{
-        data: brandData,
-        backgroundColor: brandLabels.map((_, i) => colors[i % colors.length]),
-        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-elev').trim(),
-        borderWidth: 2
-      }]
-    },
-    options: {
-      cutout: '62%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: inkColor, font: { family: 'Inter', size: 11 }, boxWidth: 10, padding: 12 }
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              const pct = brandTotal ? ((ctx.raw / brandTotal) * 100).toFixed(1) : 0;
-              return `${ctx.label}: ${yen(ctx.raw)} (${pct}%)`;
-            }
-          }
-        }
-      }
-    }
-  });
+  if (catChartInst) { catChartInst.destroy(); catChartInst = null; }
+  const rankingEl = document.getElementById('brandRanking');
+  if (brandLabels.length === 0) {
+    rankingEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--ink-mute); font-style: italic;">データがありません。</div>';
+  } else {
+    rankingEl.innerHTML = brandLabels.map((brand, i) => {
+      const amt = brandMap[brand];
+      const pct = brandTotal ? ((amt / brandTotal) * 100) : 0;
+      const fillPct = topAmount ? (amt / topAmount * 100) : 0;
+      const rank = String(i + 1).padStart(2, '0');
+      return `
+        <div class="brand-row${i === 0 ? ' top-1' : ''}">
+          <div class="rank">${rank}</div>
+          <div>
+            <div class="brand-name" title="${escapeHtml(brand)}">${escapeHtml(brand)}</div>
+            <div class="brand-bar"><div class="brand-fill" style="width: ${fillPct.toFixed(1)}%"></div></div>
+          </div>
+          <div class="amount">${yen(amt)}</div>
+          <div class="pct">${pct.toFixed(1)}%</div>
+        </div>
+      `;
+    }).join('');
+  }
 }
 
 /* ============ SETTINGS MODAL ============ */
